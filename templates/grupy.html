@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Grupy Lekcyjne - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Grupy Lekcyjne</h1>
+    <a href="/admin/Plan_lekcji/grupylekcyjne/add/" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Dodaj Grupę
+    </a>
+</div>
+
+<div class="card">
+    <h3>Zdefiniowane grupy międzyoddziałowe</h3>
+    <p style="color: #666; margin-bottom: 1rem;">
+        Poniżej znajdują się grupy łączące uczniów z różnych klas (np. WF, Języki).
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa Grupy</th>
+                <th>Przedmiot</th>
+                <th>Nauczyciel</th>
+                <th>Przypisane Klasy</th>
+                <th>Liczba Godzin</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for grupa in grupy %}
+            <tr>
+                <td><strong>{{ grupa.nazwa_grupy }}</strong></td>
+                <td>{{ grupa.przedmiot.nazwa_przedmiotu }}</td>
+                <td>{{ grupa.nauczyciel.imie_nazwisko }}</td>
+                <td>
+                    {% for klasa in grupa.klasy.all %}
+                        <span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 4px;">
+                            {{ klasa.nazwa }}
+                        </span>
+                    {% empty %}
+                        <span style="color: #999; font-style: italic;">Brak klas</span>
+                    {% endfor %}
+                </td>
+                <td style="text-align: center;">{{ grupa.liczba_godzin_w_grupie }}</td>
+                <td>
+                    <a href="/admin/Plan_lekcji/grupylekcyjne/{{ grupa.id }}/change/" class="btn btn-sm btn-primary" title="Edytuj">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                    Brak zdefiniowanych grup.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

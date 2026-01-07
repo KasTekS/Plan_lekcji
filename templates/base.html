@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}System Planowania - AWANS{% endblock %}</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <img src="{% static 'img/logo.png' %}" alt="Logo AWANS">
+            </div>
+            <div class="school-name">Szkoła AWANS Pinczów</div>
+        </div>
+
+        <nav class="sidebar-nav">
+        <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+    <i class="fas fa-calendar-days"></i> Plan Lekcji
+</a>
+           <a href="{% url 'wymagania' %}" class="nav-link {% if request.path == '/wymagania/' %}active{% endif %}">
+    <i class="fas fa-list-check"></i> Wymagania
+</a>
+           <a href="{% url 'grupy' %}" class="nav-link {% if request.path == '/grupy/' %}active{% endif %}">
+    <i class="fas fa-users-rectangle"></i> Grupy Lekcyjne
+</a>
+            <a href="#" class="nav-link">
+                <i class="fas fa-user-clock"></i> Ogr. Nauczycieli
+            </a>
+            <a href="#" class="nav-link">
+                <i class="fas fa-school-flag"></i> Ogr. Klas
+            </a>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
+            <a href="/admin/" class="nav-link" style="color: #cbd5e1;">
+                <i class="fas fa-cogs"></i> Panel Admina
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            &copy; 2026 System Planowania
+        </div>
+    </aside>
+
+    <main class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

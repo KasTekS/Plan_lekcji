@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Wymagania - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Wymagania Przedmiotowe</h1>
+    <a href="#" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Dodaj Wymaganie
+    </a>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div>
+            <h3 style="margin: 0; color: var(--awans-navy);">Lista zdefiniowanych zajęć</h3>
+            <p style="color: #64748b; font-size: 0.9em; margin: 5px 0 0 0;">
+                Zarządzaj przydziałem godzin dla nauczycieli i klas.
+            </p>
+        </div>
+        </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Nauczyciel</th>
+                    <th style="width: 20%;">Klasa</th>
+                    <th style="width: 35%;">Przedmiot</th>
+                    <th style="width: 10%; text-align: center;">Godziny</th>
+                    <th style="width: 10%; text-align: right;">Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for wpis in wymagania %}
+                <tr>
+                    <td style="font-weight: 500;">
+                        {{ wpis.nauczyciel.imie_nazwisko }}
+                    </td>
+                    <td>
+                        <span class="badge-class">
+                            <i class="fas fa-users-class" style="font-size: 0.8em; margin-right: 4px;"></i>
+                            {{ wpis.klasa.nazwa }}
+                        </span>
+                    </td>
+                    <td>{{ wpis.przedmiot.nazwa_przedmiotu }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge-hours">{{ wpis.liczba_godzin }}</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="#" class="action-btn" title="Edytuj">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button class="action-btn delete" title="Usuń" onclick="return confirm('Czy na pewno usunąć?')">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: #94a3b8;">
+                        <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
+                        Brak zdefiniowanych wymagań.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

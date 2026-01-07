@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Plan Lekcji - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Plan Lekcji</h1>
+    <div>
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Drukuj
+        </button>
+    </div>
+</div>
+
+<div class="filters-container">
+    <form method="get" action="" id="filterForm">
+        <div class="filters-wrapper">
+
+            <div class="filter-box">
+                <label for="klasa_id" class="filter-label">
+                    <i class="fas fa-users"></i> Wybierz Klasę
+                </label>
+                <select name="klasa_id" id="klasa_id" class="styled-select" onchange="clearAndSubmit('nauczyciel_id')">
+                    <option value="">-- Kliknij, aby wybrać --</option>
+                    {% for k in klasy %}
+                        <option value="{{ k.id }}" {% if k.id == selected_klasa_id %}selected{% endif %}>
+                            {{ k.nazwa }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-separator">
+                <div class="separator-line"></div>
+                <div class="separator-text">LUB</div>
+                <div class="separator-line"></div>
+            </div>
+
+            <div class="filter-box">
+                <label for="nauczyciel_id" class="filter-label">
+                    <i class="fas fa-chalkboard-user"></i> Wybierz Nauczyciela
+                </label>
+                <select name="nauczyciel_id" id="nauczyciel_id" class="styled-select" onchange="clearAndSubmit('klasa_id')">
+                    <option value="">-- Kliknij, aby wybrać --</option>
+                    {% for n in nauczyciele %}
+                        <option value="{{ n.id }}"
+                                {% if n.id|stringformat:"s" == selected_nauczyciel_id %}selected{% endif %}>
+                            {{ n.imie_nazwisko }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% if selected_obiekt %}
+    <div class="card">
+        <h3 style="margin-bottom: 20px; color: var(--awans-navy);">
+            Plan lekcji:
+            <span style="color: var(--awans-gold-hover);">
+                {% if typ_widoku == 'klasa' %}Klasa{% else %}Nauczyciel{% endif %}
+                {{ selected_obiekt }}
+            </span>
+        </h3>
+
+        <div style="overflow-x: auto;">
+            <table style="text-align: center; border: 1px solid #ddd;">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Nr</th>
+                        <th style="width: 19%;">Poniedziałek</th>
+                        <th style="width: 19%;">Wtorek</th>
+                        <th style="width: 19%;">Środa</th>
+                        <th style="width: 19%;">Czwartek</th>
+                        <th style="width: 19%;">Piątek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for godzina in godziny %}
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">{{ godzina }}</td>
+                        {% for dzien in dni %}
+                            <td style="height: 80px; vertical-align: middle;">
+                                {% if plan|get_item:godzina|get_item:dzien %}
+                                    {% with l=plan|get_item:godzina|get_item:dzien %}
+                                        <div style="font-weight: bold; color: var(--awans-navy);">
+                                            {{ l.linia1 }}
+                                        </div>
+                                        <div style="font-size: 0.85em; color: #555;">
+                                            {{ l.linia2 }}
+                                        </div>
+                                    {% endwith %}
+                                {% else %}
+                                    <span style="color: #eee;">-</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-info" style="border-left: 5px solid var(--awans-navy);">
+        <i class="fas fa-info-circle"></i> Wybierz klasę lub nauczyciela powyżej, aby zobaczyć plan.
+    </div>
+{% endif %}
+
+<script>
+    // Funkcja czyszcząca drugie pole select przed wysłaniem formularza
+    function clearAndSubmit(idToClear) {
+        document.getElementById(idToClear).value = "";
+        document.getElementById('filterForm').submit();
+    }
+</script>
+
+{% endblock %}
