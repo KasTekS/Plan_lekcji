@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tytul }} - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ tytul }}</h1>
+    <a href="javascript:history.back()" class="btn btn-primary" style="background-color: #64748b;">
+        <i class="fas fa-arrow-left"></i> Powrót
+    </a>
+</div>
+
+<div class="card" style="max-width: 900px; margin: 0 auto;">
+    <form method="post">
+        {% csrf_token %}
+        
+       {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" style="font-weight: 600; color: var(--awans-navy); display: block; margin-bottom: 5px;">
+                    {{ field.label }}
+                </label>
+
+                {% if field.name == 'klasy_wybor' %}
+                    <div class="checkbox-grid">
+                        {{ field }}
+                    </div>
+                {% else %}
+                    {{ field }}
+                {% endif %}
+
+                {% if field.help_text %}
+                    <small style="color: #64748b;">{{ field.help_text }}</small>
+                {% endif %}
+                {% if field.errors %}
+                    <div style="color: #dc2626; font-size: 0.9em; margin-top: 5px;">
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div style="margin-top: 20px; text-align: right;">
+            <button type="submit" class="btn btn-gold">
+                <i class="fas fa-save"></i> Zapisz zmiany
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

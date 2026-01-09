@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Klasy - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Baza Klas</h1>
+    <a href="{% url 'dodaj_klase' %}" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Dodaj Klasę
+    </a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol (ID)</th>
+                <th>Nazwa</th>
+                <th>Rocznik</th>
+                <th>Liczba osób</th>
+                <th style="text-align: right; width: 150px;">Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for k in klasy %}
+            <tr>
+                <td><span class="badge-class">{{ k.id }}</span></td>
+                <td>{{ k.nazwa|default:"-" }}</td>
+                <td>{{ k.rok }}</td>
+                <td>{{ k.ilosc_osob }}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'edytuj_klase' k.id %}" class="action-btn" title="Edytuj">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <form action="{% url 'usun_klase' k.id %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn delete" onclick="return confirm('Usunąć klasę {{ k.id }}?')" title="Usuń">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

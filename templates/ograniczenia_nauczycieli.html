@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ogr. Nauczycieli - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Ograniczenia Nauczycieli</h1>
+    <div style="font-size: 0.9em; color: #666;">
+        <span style="display:inline-block; width: 15px; height: 15px; background: #dc2626; vertical-align: middle; margin-right: 5px;"></span> Niedostępny
+        <span style="display:inline-block; width: 15px; height: 15px; background: #fff; border: 1px solid #ccc; vertical-align: middle; margin-left: 15px; margin-right: 5px;"></span> Dostępny
+    </div>
+</div>
+
+<div class="grid-container">
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th class="th-name" rowspan="2">Nauczyciel</th>
+                {% for dzien in dni %}
+                    <th colspan="10">{{ dzien }}</th>
+                {% endfor %}
+            </tr>
+            <tr>
+                {% for dzien in dni %}
+                    {% for h in godziny %}
+                        <th>{{ h }}</th>
+                    {% endfor %}
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for wiersz in siatka %}
+            <tr>
+                <td class="td-name">{{ wiersz.obj.imie_nazwisko }}</td>
+                {% for dzien in dni %}
+                    {% for h in godziny %}
+                        {% with status=wiersz.grid|dictsort:0|first %} {# trik django template niepotrzebny jesli uzyjemy wlasnego tagu lub prostego dostepu #}
+                            {# Prostszy dostęp przez zmienną w pętli widoku, ale tutaj zrobimy dostęp słownikowy #}
+                        {% endwith %}
+                        
+                        {# Pobieranie wartosci ze slownika w szablonie #}
+                        <td style="padding: 0;">
+                            {% for d, hours_map in wiersz.grid.items %}
+                                {% if d == dzien %}
+                                    {% for hour_key, is_blocked in hours_map.items %}
+                                        {% if hour_key == h %}
+                                            <div class="grid-cell {% if is_blocked %}blocked{% else %}free{% endif %}"
+                                                 onclick="toggleCell(this, 'nauczyciel', '{{ wiersz.obj.id }}', '{{ dzien }}', '{{ h }}')">
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                    {% endfor %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCell(element, type, id, day, hour) {
+    // UI optimistic update (natychmiastowa zmiana koloru dla wrażenia szybkości)
+    const isBlocked = element.classList.contains('blocked');
+    if (isBlocked) {
+        element.classList.remove('blocked');
+        element.classList.add('free');
+    } else {
+        element.classList.remove('free');
+        element.classList.add('blocked');
+    }
+
+    // Wysyłanie do backendu
+    fetch("{% url 'toggle_ograniczenie' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            type: type,
+            id: id,
+            day: day,
+            hour: hour
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'error') {
+            alert('Wystąpił błąd podczas zapisywania zmian.');
+            // Cofnij zmianę wizualną
+            if (isBlocked) {
+                element.classList.add('blocked');
+                element.classList.remove('free');
+            } else {
+                element.classList.add('free');
+                element.classList.remove('blocked');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Błąd połączenia z serwerem.');
+    });
+}
+</script>
+{% endblock %}

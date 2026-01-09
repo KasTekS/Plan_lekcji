@@ -377,3 +377,195 @@ tbody tr:last-child td {
     .separator-line { display: none; }
     .filter-separator { width: 100%; flex-direction: row; }
 }
+
+/* --- STYLE DO GRIDU OGRANICZEŃ (Nowe) --- */
+
+.grid-container {
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    border-top: 4px solid var(--awans-navy);
+}
+
+.grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.grid-table th {
+    background-color: #334155; /* Ciemniejszy nagłówek dla gridu */
+    color: white;
+    padding: 8px 4px;
+    border: 1px solid #475569;
+    font-weight: 600;
+}
+
+.grid-table .th-name {
+    min-width: 200px;
+    text-align: left;
+    padding-left: 10px;
+    position: sticky;
+    left: 0;
+    background-color: #334155; /* Żeby nie prześwitywało przy scrollowaniu */
+    z-index: 10;
+}
+
+.grid-table td {
+    border: 1px solid #cbd5e1;
+    padding: 0;
+    height: 30px;
+    width: 30px;
+    min-width: 30px;
+}
+
+/* Pierwsza kolumna (nazwiska) sticky */
+.grid-table td.td-name {
+    position: sticky;
+    left: 0;
+    background-color: #f8fafc;
+    z-index: 5;
+    text-align: left;
+    padding: 5px 10px;
+    font-weight: 600;
+    color: var(--awans-navy);
+    border-right: 2px solid #94a3b8;
+}
+
+/* Komórki interaktywne */
+.grid-cell {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+/* Stan: Wolny (Biały) */
+.grid-cell.free {
+    background-color: #ffffff;
+}
+.grid-cell.free:hover {
+    background-color: #e2e8f0;
+}
+
+/* Stan: Zablokowany (Czerwony) */
+.grid-cell.blocked {
+    background-color: #dc2626; /* Czerwień */
+}
+.grid-cell.blocked:hover {
+    background-color: #b91c1c;
+}
+/* W pliku style.css */
+.form-group ul {
+    list-style-type: none;
+    padding-left: 0;
+    max-height: 200px; /* Ograniczenie wysokości dla dużej liczby klas */
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #f8fafc;
+}
+
+.form-group ul li {
+    margin-bottom: 5px;
+}
+
+.form-group ul li label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: normal !important; /* Nadpisanie pogrubienia labeli z forms */
+    cursor: pointer;
+}
+/* --- STYLIZACJA CHECKBOXÓW JAKO KAFELKI (Nowe) --- */
+
+/* Kontener na siatkę */
+/* Wrapper główny */
+.checkbox-grid {
+    width: 100%;
+    margin-top: 5px;
+}
+
+/* To jest kluczowa poprawka.
+   Django generuje listę <ul> z klasą .form-control (przez forms.py).
+   Musimy nadpisać jej style, aby stała się siatką.
+*/
+.checkbox-grid ul,
+.checkbox-grid .form-control {
+    display: grid !important;
+    /* Kafelki: minimum 140px, a jeśli jest miejsce, to się rozciągają (1fr) */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
+
+    /* Resetujemy style, które "psuły" wygląd (dziedziczone z .form-control) */
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    height: auto !important;
+    list-style: none !important;
+}
+
+/* Pojedynczy element listy (kontener dla labela) */
+.checkbox-grid li {
+    display: flex; /* Ważne: pozwala labelowi wypełnić całą wysokość */
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Wygląd kafelka (Label) */
+.checkbox-grid label {
+    display: flex;
+    align-items: center;
+    width: 100%; /* Rozciągnij na całą szerokość komórki siatki */
+    background-color: white;
+    border: 1px solid #cbd5e1; /* Delikatniejsza ramka */
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+    font-weight: 500;
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Hover na kafelku */
+.checkbox-grid label:hover {
+    border-color: var(--awans-navy);
+    background-color: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+/* Checkbox input wewnątrz kafelka */
+.checkbox-grid input[type="checkbox"] {
+    transform: scale(1.4);
+    margin-right: 10px;
+    cursor: pointer;
+    accent-color: var(--awans-navy);
+    /* Reset stylów inputa, żeby nie wyglądał jak pole tekstowe */
+    width: auto !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: inline-block !important;
+}
+
+/* --- STAN ZAZNACZONY --- */
+/* Kiedy input jest zaznaczony, zmieniamy styl całego labela */
+.checkbox-grid label:has(input:checked) {
+    border-color: var(--awans-navy);
+    border-width: 2px; /* Grubsza ramka dla zaznaczonego */
+    background-color: #eff6ff; /* Bardzo jasny niebieski */
+    color: var(--awans-navy-dark);
+    font-weight: 600;
+    padding: 9px 11px; /* Korekta paddingu o -1px przez grubszą ramkę, żeby nie skakało */
+}

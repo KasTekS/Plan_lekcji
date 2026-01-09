@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1 class="page-title">Wymagania Przedmiotowe</h1>
-    <a href="#" class="btn btn-gold">
+    <a href="{% url 'dodaj_wymaganie' %}" class="btn btn-gold">
         <i class="fas fa-plus"></i> Dodaj Wymaganie
     </a>
 </div>
@@ -18,7 +18,7 @@
                 Zarządzaj przydziałem godzin dla nauczycieli i klas.
             </p>
         </div>
-        </div>
+    </div>
 
     <div class="table-responsive">
         <table>
@@ -48,12 +48,15 @@
                         <span class="badge-hours">{{ wpis.liczba_godzin }}</span>
                     </td>
                     <td style="text-align: right;">
-                        <a href="#" class="action-btn" title="Edytuj">
+                        <a href="{% url 'edytuj_wymaganie' wpis.id %}" class="action-btn" title="Edytuj">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <button class="action-btn delete" title="Usuń" onclick="return confirm('Czy na pewno usunąć?')">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <form action="{% url 'usun_wymaganie' wpis.id %}" method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="action-btn delete" onclick="return confirm('Czy na pewno usunąć to wymaganie?')" title="Usuń">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}

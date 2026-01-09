@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1 class="page-title">Grupy Lekcyjne</h1>
-    <a href="/admin/Plan_lekcji/grupylekcyjne/add/" class="btn btn-gold">
+    <a href="{% url 'dodaj_grupe' %}" class="btn btn-gold">
         <i class="fas fa-plus"></i> Dodaj Grupę
     </a>
 </div>
@@ -44,9 +44,15 @@
                 </td>
                 <td style="text-align: center;">{{ grupa.liczba_godzin_w_grupie }}</td>
                 <td>
-                    <a href="/admin/Plan_lekcji/grupylekcyjne/{{ grupa.id }}/change/" class="btn btn-sm btn-primary" title="Edytuj">
+                    <a href="{% url 'edytuj_grupe' grupa.id %}" class="action-btn" title="Edytuj">
                         <i class="fas fa-edit"></i>
                     </a>
+                    <form action="{% url 'usun_grupe' grupa.id %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn delete" onclick="return confirm('Czy na pewno usunąć tę grupę?')" title="Usuń">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
                 </td>
             </tr>
             {% empty %}

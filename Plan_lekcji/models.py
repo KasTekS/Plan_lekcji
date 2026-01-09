@@ -44,7 +44,8 @@ class Grupylekcyjne(models.Model):
     przedmiot = models.ForeignKey(Przedmioty, models.DO_NOTHING, db_column='id_przedmiotu')
     nauczyciel = models.ForeignKey(Nauczyciel, models.DO_NOTHING, db_column='id_nauczyciela')
     liczba_godzin_w_grupie = models.IntegerField()
-    rozmieszczenie = models.TextField()
+    # DODANO default='BRAK' - naprawia błąd przy dodawaniu grupy
+    rozmieszczenie = models.TextField(default='BRAK')
 
     # Relacja ManyToMany do Klas przez tabelę pośrednią
     klasy = models.ManyToManyField(Klasa, through='Klasywgrupach')
@@ -68,7 +69,6 @@ class Klasywgrupach(models.Model):
         managed = False
         db_table = 'klasywgrupach'
         unique_together = (('grupa', 'klasa'),)
-
 
 
 class Ograniczenia(models.Model):
@@ -111,7 +111,8 @@ class WymaganiaPrzedmiotowe(models.Model):
     klasa = models.ForeignKey(Klasa, models.DO_NOTHING, db_column='id_klasa', blank=True, null=True)
     przedmiot = models.ForeignKey(Przedmioty, models.DO_NOTHING, db_column='id_przedmiot', blank=True, null=True)
     liczba_godzin = models.IntegerField(blank=True, null=True)
-    rozmieszczenie = models.TextField()
+    # DODANO default='BRAK' - naprawia potencjalny błąd przy dodawaniu wymagań
+    rozmieszczenie = models.TextField(default='BRAK')
 
     class Meta:
         managed = False

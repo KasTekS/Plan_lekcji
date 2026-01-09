@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Przedmioty - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Baza Przedmiotów</h1>
+    <a href="{% url 'dodaj_przedmiot' %}" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Dodaj Przedmiot
+    </a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa Przedmiotu</th>
+                <th>Skrót</th>
+                <th style="text-align: right; width: 150px;">Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in przedmioty %}
+            <tr>
+                <td><strong>{{ p.nazwa_przedmiotu }}</strong></td>
+                <td><span class="badge-class" style="background: #f1f5f9; color: #334155;">{{ p.skrot }}</span></td>
+                <td style="text-align: right;">
+                    <a href="{% url 'edytuj_przedmiot' p.id %}" class="action-btn" title="Edytuj">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <form action="{% url 'usun_przedmiot' p.id %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn delete" onclick="return confirm('Usunąć przedmiot {{ p.nazwa_przedmiotu }}?')" title="Usuń">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

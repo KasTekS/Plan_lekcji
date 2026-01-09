@@ -20,21 +20,36 @@
             <div class="school-name">Szkoła AWANS Pinczów</div>
         </div>
 
-        <nav class="sidebar-nav">
-        <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
-    <i class="fas fa-calendar-days"></i> Plan Lekcji
-</a>
-           <a href="{% url 'wymagania' %}" class="nav-link {% if request.path == '/wymagania/' %}active{% endif %}">
-    <i class="fas fa-list-check"></i> Wymagania
-</a>
-           <a href="{% url 'grupy' %}" class="nav-link {% if request.path == '/grupy/' %}active{% endif %}">
-    <i class="fas fa-users-rectangle"></i> Grupy Lekcyjne
-</a>
-            <a href="#" class="nav-link">
+       <nav class="sidebar-nav">
+            <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                <i class="fas fa-calendar-days"></i> Plan Lekcji
+            </a>
+            <a href="{% url 'wymagania' %}" class="nav-link {% if '/wymagania/' in request.path %}active{% endif %}">
+                <i class="fas fa-list-check"></i> Wymagania
+            </a>
+            <a href="{% url 'grupy' %}" class="nav-link {% if '/grupy/' in request.path %}active{% endif %}">
+                <i class="fas fa-users-rectangle"></i> Grupy Lekcyjne
+            </a>
+
+            <a href="{% url 'ograniczenia_nauczycieli' %}" class="nav-link {% if '/ograniczenia/nauczyciele/' in request.path %}active{% endif %}">
                 <i class="fas fa-user-clock"></i> Ogr. Nauczycieli
             </a>
-            <a href="#" class="nav-link">
+            <a href="{% url 'ograniczenia_klas' %}" class="nav-link {% if '/ograniczenia/klasy/' in request.path %}active{% endif %}">
                 <i class="fas fa-school-flag"></i> Ogr. Klas
+            </a>
+
+
+
+            <a href="{% url 'lista_nauczycieli' %}" class="nav-link {% if '/nauczyciele/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
+                <i class="fas fa-chalkboard-teacher"></i> Nauczyciele
+            </a>
+
+            <a href="{% url 'lista_przedmiotow' %}" class="nav-link {% if '/przedmioty/' in request.path %}active{% endif %}">
+                <i class="fas fa-book"></i> Przedmioty
+            </a>
+
+            <a href="{% url 'lista_klas' %}" class="nav-link {% if '/klasy/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
+                <i class="fas fa-users"></i> Klasy
             </a>
 
             <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
