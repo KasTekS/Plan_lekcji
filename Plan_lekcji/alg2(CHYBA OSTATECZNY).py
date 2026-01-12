@@ -7,8 +7,8 @@ from ortools.sat.python import cp_model
 # --- Krok 1: Wczytywanie danych z bazy ---
 def pobierz_dane_z_bazy(db_params):
     """
-    Funkcja łączy się z bazą danych, pobiera wszystkie potrzebne dane,
-    w tym lekcje indywidualne, grupy oraz ograniczenia dla klas i nauczycieli.
+    Funkcja łączy się z bazą danych, pobiera dane wejściowe oraz (opcjonalnie)
+    istniejący plan lekcji, aby móc go optymalizować.
     """
     conn = None
     try:
@@ -17,7 +17,7 @@ def pobierz_dane_z_bazy(db_params):
         cur = conn.cursor()
         print("Połączenie udane.")
 
-        # Pobieranie danych podstawowych
+        # 1. Dane podstawowe
         cur.execute("SELECT ID, Imie_Nazwisko FROM Nauczyciel ORDER BY ID")
         nauczyciele = dict(cur.fetchall())
         cur.execute("SELECT ID, Skrot FROM Przedmioty ORDER BY ID")
@@ -26,13 +26,11 @@ def pobierz_dane_z_bazy(db_params):
         klasy_raw = cur.fetchall()
         klasy = {k_id: {'rok': rok, 'ilosc_osob': ilosc} for k_id, rok, ilosc in klasy_raw}
 
-        # Pobieranie wymagań indywidualnych (z kolumną 'rozmieszczenie')
+        # 2. Wymagania i Grupy
         cur.execute(
             "SELECT ID, ID_nauczyciel, ID_klasa, ID_przedmiot, Liczba_godzin, rozmieszczenie FROM Wymagania_przedmiotowe")
         wymagania_indywidualne = cur.fetchall()
-        print(f"Pobrano {len(wymagania_indywidualne)} wymagań dla lekcji indywidualnych.")
 
-        # Pobieranie grup (z kolumną 'rozmieszczenie')
         cur.execute(
             "SELECT id, id_nauczyciela, id_przedmiotu, liczba_godzin_w_grupie, rozmieszczenie FROM grupylekcyjne")
         grupy_raw = cur.fetchall()
@@ -50,31 +48,59 @@ def pobierz_dane_z_bazy(db_params):
                     'liczba_godzin': l_godzin, 'klasy': frozenset(klasy_w_grupach_map[id_g]),
                     'rozmieszczenie': rozmieszczenie
                 })
-        print(f"Pobrano {len(grupy_z_bazy)} zdefiniowanych grup z bazy danych.")
 
-        # Pobieranie ograniczeń
+        # 3. Ograniczenia
         cur.execute("SELECT Od_, Do_, Dzien_tygodnia, Nauczyciel_ID FROM Ograniczenia")
         ograniczenia_nauczycieli = cur.fetchall()
         cur.execute("SELECT id_klasy, dzien_tygodnia, od_, do_ FROM ograniczenia_klas")
         ograniczenia_klas = cur.fetchall()
-        print(f"Pobrano {len(ograniczenia_klas)} rekordów ograniczeń dla klas.")
+
+        # 4. ISTNIEJĄCY PLAN LEKCJI (Do stabilizacji)
+        print("Pobieranie istniejącego planu lekcji...")
+        cur.execute("""
+                    SELECT id_nauczyciel, id_klasa, id_przedmiot, id_grupy, dzien_tygodnia, godzina_lekcyjna
+                    FROM plan_lekcji
+                    """)
+        stary_plan_raw = cur.fetchall()
+
+        stary_plan_ind = collections.defaultdict(list)
+        stary_plan_grup = collections.defaultdict(list)
+
+        mapa_dni_db = {'PON': 'Poniedziałek', 'WT': 'Wtorek', 'SR': 'Środa', 'CZW': 'Czwartek', 'PT': 'Piątek'}
+
+        for id_n, id_k, id_p, id_g, dzien_db, godz in stary_plan_raw:
+            dzien_pelny = mapa_dni_db.get(dzien_db.strip().upper())
+            if not dzien_pelny: continue
+
+            if id_g is not None:
+                stary_plan_grup[id_g].append((dzien_pelny, godz))
+            else:
+                klucz = (id_n, id_k, id_p)
+                stary_plan_ind[klucz].append((dzien_pelny, godz))
+
+        for k in stary_plan_ind:
+            stary_plan_ind[k].sort()
+        for k in stary_plan_grup:
+            stary_plan_grup[k].sort()
 
         print("Pomyślnie pobrano wszystkie dane z bazy.")
         cur.close()
-        return nauczyciele, przedmioty, klasy, wymagania_indywidualne, grupy_z_bazy, ograniczenia_nauczycieli, ograniczenia_klas
+        return nauczyciele, przedmioty, klasy, wymagania_indywidualne, grupy_z_bazy, ograniczenia_nauczycieli, ograniczenia_klas, (
+            stary_plan_ind, stary_plan_grup)
 
     except (Exception, psycopg2.DatabaseError) as error:
         print(f"Błąd podczas połączenia lub pobierania danych z PostgreSQL: {error}")
-        return None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None
     finally:
         if conn is not None:
             conn.close()
-            print("Połączenie z bazą danych zostało zamknięte.")
 
 
 # --- Krok 2: Główna logika generatora ---
 def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, grupy_z_bazy, ograniczenia_nauczycieli,
-                 ograniczenia_klas, id_wf, db_params):
+                 ograniczenia_klas, id_wf, db_params, stary_plan_dane, zachowaj_obecny_plan=False):
+    stary_plan_ind, stary_plan_grup = stary_plan_dane
+
     # --- Przygotowanie danych ---
     id_nauczycieli = list(nauczyciele.keys())
     id_klas = list(klasy_info.keys())
@@ -82,17 +108,13 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
     mapowanie_dni_skrot_na_pl = {'PON': 'Poniedziałek', 'WT': 'Wtorek', 'SR': 'Środa', 'CZW': 'Czwartek',
                                  'PT': 'Piątek'}
     mapowanie_dni_pl_na_skrot = {v: k for k, v in mapowanie_dni_skrot_na_pl.items()}
-    godziny_lekcyjne = {
-        'Poniedziałek': list(range(1, 11)), 'Wtorek': list(range(1, 11)),
-        'Środa': list(range(1, 11)), 'Czwartek': list(range(1, 11)),
-        'Piątek': list(range(1, 11))
-    }
+    godziny_lekcyjne = {d: list(range(1, 11)) for d in dni_tygodnia}
     wszystkie_sloty = [(dzien, godzina) for dzien in dni_tygodnia for godzina in godziny_lekcyjne[dzien]]
     dni_do_indeksu = {dzien: i for i, dzien in enumerate(dni_tygodnia)}
 
     MAX_GODZINA = 10
-
     model = cp_model.CpModel()
+    punkty_karne = []
 
     # --- Przygotowanie dynamicznych granic dla logiki 'ZEWNETRZNE' ---
     dostepne_sloty_klasy = {}
@@ -139,9 +161,14 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
 
     przydzial_indywidualny = {}
     wszystkie_lekcje_indywidualne = []
+
     for id_wym, id_n, id_k, id_p, l_godzin, rozm in wymagania_indywidualne:
         klucz_wymagania = ('ind', id_wym)
         lekcje_do_specjalnej_obslugi[klucz_wymagania].update({'klasy': {id_k}, 'rozm': rozm, 'N': l_godzin})
+
+        historia_lekcji = []
+        if zachowaj_obecny_plan:
+            historia_lekcji = stary_plan_ind.get((id_n, id_k, id_p), [])
 
         for i in range(l_godzin):
             lekcja_id = (id_wym, i)
@@ -159,6 +186,24 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 model.Add(hour_var == godzina).OnlyEnforceIf(var)
             model.AddExactlyOne(all_bool_vars)
 
+            # STABILIZACJA
+            if zachowaj_obecny_plan and i < len(historia_lekcji):
+                stary_dzien, stara_godzina = historia_lekcji[i]
+                if stary_dzien in dni_do_indeksu:
+                    stary_dzien_idx = dni_do_indeksu[stary_dzien]
+                    model.AddHint(day_var, stary_dzien_idx)
+                    model.AddHint(hour_var, stara_godzina)
+
+                    zmiana_dnia = model.NewBoolVar(f'zmiana_dnia_ind_{id_wym}_{i}')
+                    model.Add(day_var != stary_dzien_idx).OnlyEnforceIf(zmiana_dnia)
+                    model.Add(day_var == stary_dzien_idx).OnlyEnforceIf(zmiana_dnia.Not())
+                    punkty_karne.append(zmiana_dnia * 500)
+
+                    zmiana_godziny = model.NewBoolVar(f'zmiana_godz_ind_{id_wym}_{i}')
+                    model.Add(hour_var != stara_godzina).OnlyEnforceIf(zmiana_godziny)
+                    model.Add(hour_var == stara_godzina).OnlyEnforceIf(zmiana_godziny.Not())
+                    punkty_karne.append(zmiana_godziny * 50)
+
             lekcje_do_specjalnej_obslugi[klucz_wymagania]['dni'].append(day_var)
             lekcje_do_specjalnej_obslugi[klucz_wymagania]['godziny'].append(hour_var)
 
@@ -170,6 +215,10 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
         rozm = grupa['rozmieszczenie']
         klucz_grupy = ('grup', id_g)
         lekcje_do_specjalnej_obslugi[klucz_grupy].update({'klasy': grupa['klasy'], 'rozm': rozm, 'N': l_godzin})
+
+        historia_lekcji = []
+        if zachowaj_obecny_plan:
+            historia_lekcji = stary_plan_grup.get(id_g, [])
 
         for i in range(l_godzin):
             lekcja_id = (id_g, i)
@@ -187,12 +236,28 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 model.Add(hour_var == godzina).OnlyEnforceIf(var)
             model.AddExactlyOne(all_bool_vars)
 
+            # STABILIZACJA
+            if zachowaj_obecny_plan and i < len(historia_lekcji):
+                stary_dzien, stara_godzina = historia_lekcji[i]
+                if stary_dzien in dni_do_indeksu:
+                    stary_dzien_idx = dni_do_indeksu[stary_dzien]
+                    model.AddHint(day_var, stary_dzien_idx)
+                    model.AddHint(hour_var, stara_godzina)
+
+                    zmiana_dnia = model.NewBoolVar(f'zmiana_dnia_grup_{id_g}_{i}')
+                    model.Add(day_var != stary_dzien_idx).OnlyEnforceIf(zmiana_dnia)
+                    model.Add(day_var == stary_dzien_idx).OnlyEnforceIf(zmiana_dnia.Not())
+                    punkty_karne.append(zmiana_dnia * 500)
+
+                    zmiana_godziny = model.NewBoolVar(f'zmiana_godz_grup_{id_g}_{i}')
+                    model.Add(hour_var != stara_godzina).OnlyEnforceIf(zmiana_godziny)
+                    model.Add(hour_var == stara_godzina).OnlyEnforceIf(zmiana_godziny.Not())
+                    punkty_karne.append(zmiana_godziny * 50)
+
             lekcje_do_specjalnej_obslugi[klucz_grupy]['dni'].append(day_var)
             lekcje_do_specjalnej_obslugi[klucz_grupy]['godziny'].append(hour_var)
 
     # --- OGRANICZENIA TWARDE ---
-
-    # 2. Jedna klasa może mieć co najwyżej jedną lekcję w danym slocie.
     for id_k in id_klas:
         for dzien, godzina in wszystkie_sloty:
             lekcje_klasy_w_slocie = []
@@ -204,7 +269,6 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     lekcje_klasy_w_slocie.append(przydzial_grupowy[(l['id'], dzien, godzina)])
             model.AddAtMostOne(lekcje_klasy_w_slocie)
 
-    # 3. Jeden nauczyciel może mieć co najwyżej jedną lekcję w danym slocie.
     for id_n in id_nauczycieli:
         for dzien, godzina in wszystkie_sloty:
             lekcje_nauczyciela_w_slocie = []
@@ -216,7 +280,6 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     lekcje_nauczyciela_w_slocie.append(przydzial_grupowy[(l['id'], dzien, godzina)])
             model.AddAtMostOne(lekcje_nauczyciela_w_slocie)
 
-    # 4. Ograniczenia dostępności nauczycieli.
     for od, do, dzien_skrot, id_n in ograniczenia_nauczycieli:
         dzien = mapowanie_dni_skrot_na_pl.get(dzien_skrot.strip().upper())
         if dzien:
@@ -227,7 +290,6 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     for l in wszystkie_lekcje_grupowe:
                         if l['nauczyciel'] == id_n: model.Add(przydzial_grupowy[(l['id'], dzien, godzina)] == 0)
 
-    # 5. Ograniczenia dostępności klas (podwójne zabezpieczenie).
     for id_k, dzien_skrot, od, do in ograniczenia_klas:
         dzien_pl = mapowanie_dni_skrot_na_pl.get(dzien_skrot.strip().upper())
         if dzien_pl:
@@ -239,7 +301,6 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     for lekcja in wszystkie_lekcje_grupowe:
                         if id_k in lekcja['klasy']: model.Add(przydzial_grupowy[(lekcja['id'], dzien_pl, godzina)] == 0)
 
-    # 6. Ograniczenie liczby nauczycieli (WF)
     if id_wf is not None:
         for dzien in dni_tygodnia:
             for godzina in godziny_lekcyjne[dzien]:
@@ -261,7 +322,7 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     nauczyciele_uczacy_inny_przedmiot.append(uczy_innego_przedmiotu)
                 model.Add(sum(nauczyciele_uczacy_inny_przedmiot) <= 8)
 
-    # 7. Ograniczenie 7 - Bloki i DYNAMICZNE Rozmieszczenie
+    # 7. Bloki i rozmieszczenie
     for klucz, grupa in lekcje_do_specjalnej_obslugi.items():
         typ, id_zasobu = klucz
         dni_vars = grupa['dni']
@@ -274,7 +335,7 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
 
         if typ == 'ind':
             granice = granice_slotow_wymagan[id_zasobu]
-        else:  # 'grup'
+        else:
             granice = granice_slotow_grup[id_zasobu]
 
         min_h_list = granice['min']
@@ -297,20 +358,16 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 max_h_dla_dnia = model.NewIntVar(-1, MAX_GODZINA, f'zew_max_h_{id_zasobu}_{i}')
                 model.AddElement(d_var, min_h_list, min_h_dla_dnia)
                 model.AddElement(d_var, max_h_list, max_h_dla_dnia)
-
                 model.Add(min_h_dla_dnia != -1)
 
                 is_first = model.NewBoolVar(f'zew_is_first_{id_zasobu}_{i}')
                 is_last = model.NewBoolVar(f'zew_is_last_{id_zasobu}_{i}')
-
                 model.Add(h_var == min_h_dla_dnia).OnlyEnforceIf(is_first)
                 model.Add(h_var == max_h_dla_dnia).OnlyEnforceIf(is_last)
-
                 model.AddBoolOr([is_first, is_last])
 
         elif rozm == 'BLOK_ZEWNETRZNY':
             if N > 1:
-                # 1. Logika bloku
                 for i in range(N - 1):
                     model.Add(dni_vars[i] == dni_vars[i + 1])
                 model.AddAllDifferent(godz_vars)
@@ -320,14 +377,11 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 model.AddMinEquality(min_h_bloku, godz_vars)
                 model.Add(max_h_bloku - min_h_bloku == N - 1)
 
-                # 2. Logika zewnętrzna (dynamiczna)
                 d_var = dni_vars[0]
-
                 min_dostepna_h_dnia = model.NewIntVar(-1, MAX_GODZINA, f'blok_zew_min_h_{id_zasobu}')
                 max_dostepna_h_dnia = model.NewIntVar(-1, MAX_GODZINA, f'blok_zew_max_h_{id_zasobu}')
                 model.AddElement(d_var, min_h_list, min_dostepna_h_dnia)
                 model.AddElement(d_var, max_h_list, max_dostepna_h_dnia)
-
                 model.Add(min_dostepna_h_dnia != -1)
 
                 ostatni_mozliwy_poczatek = model.NewIntVar(1, MAX_GODZINA, f'blok_zew_last_start_{id_zasobu}')
@@ -335,18 +389,13 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
 
                 is_first_block = model.NewBoolVar(f'blok_zew_is_first_{id_zasobu}')
                 is_last_block = model.NewBoolVar(f'blok_zew_is_last_{id_zasobu}')
-
                 model.Add(min_h_bloku == min_dostepna_h_dnia).OnlyEnforceIf(is_first_block)
                 model.Add(min_h_bloku == ostatni_mozliwy_poczatek).OnlyEnforceIf(is_last_block)
-
                 model.AddBoolOr([is_first_block, is_last_block])
 
     # --- OGRANICZENIA MIĘKKIE ---
 
-    punkty_karne = []
-
-    # === NOWA FUNKCJA POMOCNICZA (tylko dla ograniczeń miękkich) ===
-    # Definiujemy ją raz, aby używać jej wielokrotnie w pętli poniżej
+    # Funkcja pomocnicza - musi być zdefiniowana TUTAJ
     def get_lekcje_nauczyciela_o_godzinie(nauczyciel_id, dzien, godzina):
         zmienne = []
         for l_ind in wszystkie_lekcje_indywidualne:
@@ -357,52 +406,10 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 zmienne.append(przydzial_grupowy.get((l_grup['id'], dzien, godzina)))
         return [z for z in zmienne if z is not None]
 
-    # === NOWA LOGIKA: Minimalizacja okienek i dni pracy NAUCZYCIELI ===
-    # Zastępujemy logikę dla uczniów logiką dla nauczycieli
-
+    # Minimalizacja DNI PRACY NAUCZYCIELI
     for id_n in id_nauczycieli:
         for dzien in dni_tygodnia:
             godziny_dnia = godziny_lekcyjne[dzien]
-
-            # --- 1. Minimalizacja OKIENEK (Waga: 50) ---
-            for g1_idx, g1 in enumerate(godziny_dnia[:-2]):
-                g2, g3 = godziny_dnia[g1_idx + 1], godziny_dnia[g1_idx + 2]
-
-                ma_lekcje_g1 = model.NewBoolVar(f'nauczyciel_{id_n}_ma_lekcje_{dzien}_{g1}')
-                ma_lekcje_g2 = model.NewBoolVar(f'nauczyciel_{id_n}_ma_lekcje_{dzien}_{g2}')
-                ma_lekcje_g3 = model.NewBoolVar(f'nauczyciel_{id_n}_ma_lekcje_{dzien}_{g3}')
-
-                # Sprawdź lekcje na g1
-                lekcje_g1 = get_lekcje_nauczyciela_o_godzinie(id_n, dzien, g1)
-                if lekcje_g1:
-                    model.Add(sum(lekcje_g1) >= 1).OnlyEnforceIf(ma_lekcje_g1)
-                    model.Add(sum(lekcje_g1) == 0).OnlyEnforceIf(ma_lekcje_g1.Not())
-                else:
-                    model.Add(ma_lekcje_g1 == 0)
-
-                # Sprawdź lekcje na g2 (okienko)
-                lekcje_g2 = get_lekcje_nauczyciela_o_godzinie(id_n, dzien, g2)
-                if lekcje_g2:
-                    model.Add(sum(lekcje_g2) == 0).OnlyEnforceIf(ma_lekcje_g2.Not())
-                    model.Add(sum(lekcje_g2) >= 1).OnlyEnforceIf(ma_lekcje_g2)
-                else:
-                    model.Add(ma_lekcje_g2 == 0)
-
-                # Sprawdź lekcje na g3
-                lekcje_g3 = get_lekcje_nauczyciela_o_godzinie(id_n, dzien, g3)
-                if lekcje_g3:
-                    model.Add(sum(lekcje_g3) >= 1).OnlyEnforceIf(ma_lekcje_g3)
-                    model.Add(sum(lekcje_g3) == 0).OnlyEnforceIf(ma_lekcje_g3.Not())
-                else:
-                    model.Add(ma_lekcje_g3 == 0)
-
-                # Zdefiniuj okienko: (Lekcja) AND (Brak Lekcji) AND (Lekcja)
-                okienko_nauczyciela = model.NewBoolVar(f'nauczyciel_okienko_{id_n}_{dzien}_{g2}')
-                model.AddBoolAnd([ma_lekcje_g1, ma_lekcje_g2.Not(), ma_lekcje_g3]).OnlyEnforceIf(okienko_nauczyciela)
-                punkty_karne.append(okienko_nauczyciela * 50)  # Wysoka kara za okienko
-
-            # --- 2. Minimalizacja DNI PRACY (Waga: 10) ---
-            # (Ta logika jest poza pętlą 'for g1_idx...')
             lekcje_nauczyciela_w_dniu = []
             for g in godziny_dnia:
                 lekcje_nauczyciela_w_dniu.extend(get_lekcje_nauczyciela_o_godzinie(id_n, dzien, g))
@@ -411,22 +418,21 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
             if lekcje_nauczyciela_w_dniu:
                 model.Add(sum(lekcje_nauczyciela_w_dniu) > 0).OnlyEnforceIf(pracuje_w_dniu)
                 model.Add(sum(lekcje_nauczyciela_w_dniu) == 0).OnlyEnforceIf(pracuje_w_dniu.Not())
-                punkty_karne.append(pracuje_w_dniu * 10)  # Niższa kara za sam dzień pracy
+                punkty_karne.append(pracuje_w_dniu * 10)
             else:
                 model.Add(pracuje_w_dniu == 0)
 
-    # --- Koniec sekcji ograniczeń miękkich ---
-
     model.Minimize(sum(punkty_karne))
 
-    # --- Uruchomienie Solvera ---
+    # --- Solver ---
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 500.0
+    solver.parameters.max_time_in_seconds = 600.0
     status = solver.Solve(model)
 
-    # --- Wyświetlanie i ZAPISYWANIE wyników ---
+    # --- Wyniki ---
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        print('\nZnaleziono rozwiązanie! Wartość funkcji celu (punkty karne):', solver.ObjectiveValue())
+        print(f'\nZnaleziono rozwiązanie! tryb_stabilizacji={zachowaj_obecny_plan}')
+        print('Wartość funkcji celu (punkty karne):', solver.ObjectiveValue())
         plan_do_zapisu = []
         plan_lekcji = collections.defaultdict(dict)
 
@@ -483,9 +489,7 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                     print(f" | {lekcja:<{szerokosci_kolumn[klasa]}}", end="")
                 print()
     else:
-        print('\nNie znaleziono rozwiązania w zadanym czasie. Możliwe przyczyny:')
-        print('- Ograniczenia są ze sobą sprzeczne (np. "BLOK_ZEWNETRZNY" dla klasy, która nie ma wolnych krawędzi).')
-        print('- Problem jest zbyt złożony dla zadanego czasu.')
+        print('\nNie znaleziono rozwiązania w zadanym czasie.')
 
 
 # --- Krok 3: Funkcja zapisu do bazy ---
@@ -497,7 +501,6 @@ def zapisz_plan_w_bazie(plan_do_zapisu, db_params):
     try:
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
-        # Czyścimy stary plan
         cur.execute("TRUNCATE TABLE plan_lekcji RESTART IDENTITY;")
         print("\nStary plan lekcji został wyczyszczony.")
 
@@ -507,9 +510,7 @@ def zapisz_plan_w_bazie(plan_do_zapisu, db_params):
                      VALUES (%(id_nauczyciel)s, %(id_klasa)s, %(id_przedmiot)s, %(dzien_tygodnia)s, \
                              %(godzina_lekcyjna)s, %(id_grupy)s); \
                      """
-        # Zapisujemy nowy plan
         cur.executemany(sql_insert, plan_do_zapisu)
-
         conn.commit()
         print(f"Pomyślnie zapisano {cur.rowcount} nowych rekordów w tabeli plan_lekcji.")
 
@@ -520,15 +521,14 @@ def zapisz_plan_w_bazie(plan_do_zapisu, db_params):
         if conn:
             cur.close()
             conn.close()
-            print("Połączenie z bazą danych (zapis) zostało zamknięte.")
 
 
 # --- Krok 4: Uruchomienie programu ---
 if __name__ == '__main__':
-    # Uzupełnij swoje dane do bazy
+    # Konfiguracja (przykład użycia)
     db_config = {
         "host": "localhost",
-        "dbname": "plan",
+        "dbname": "plan_lekcji2",
         "user": "postgres",
         "password": "homo4cjh",
         "client_encoding": "utf8"
@@ -536,17 +536,22 @@ if __name__ == '__main__':
 
     dane = pobierz_dane_z_bazy(db_config)
 
-    if dane and (dane[3] or dane[4]):  # Sprawdź, czy są jakiekolwiek lekcje
-        nauczyciele, przedmioty, klasy, wymagania, grupy, ogr_nauczycieli, ogr_klas = dane
+    if dane and dane[0]:
+        nauczyciele, przedmioty, klasy, wymagania, grupy, ogr_nauczycieli, ogr_klas, stary_plan = dane
 
         # Znajdź ID dla WF
         id_wf = None
         try:
             id_wf = next(key for key, value in przedmioty.items() if value.strip().upper() == 'WF')
-            print(f"Znaleziono ID dla Wychowania Fizycznego: {id_wf}")
         except StopIteration:
-            print(
-                "OSTRZEŻENIE: Nie znaleziono w bazie przedmiotu o skrócie 'WF'. Ograniczenie limitu nauczycieli nie będzie aktywne.")
+            pass
 
-        # Uruchom główny generator
-        generuj_plan(nauczyciele, przedmioty, klasy, wymagania, grupy, ogr_nauczycieli, ogr_klas, id_wf, db_config)
+        # PRZYKŁAD UŻYCIA Z FLAGĄ:
+        # True = Staraj się zachować stary plan (Stabilizacja)
+        # False = Generuj od zera (Nowy Rozkład)
+        generuj_plan(
+            nauczyciele, przedmioty, klasy, wymagania, grupy,
+            ogr_nauczycieli, ogr_klas, id_wf, db_config,
+            stary_plan_dane=stary_plan,
+            zachowaj_obecny_plan=True  # <--- TU STERUJESZ TRYBEM
+        )

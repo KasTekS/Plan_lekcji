@@ -24,38 +24,59 @@
             <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
                 <i class="fas fa-calendar-days"></i> Plan Lekcji
             </a>
-            <a href="{% url 'wymagania' %}" class="nav-link {% if '/wymagania/' in request.path %}active{% endif %}">
-                <i class="fas fa-list-check"></i> Wymagania
-            </a>
-            <a href="{% url 'grupy' %}" class="nav-link {% if '/grupy/' in request.path %}active{% endif %}">
-                <i class="fas fa-users-rectangle"></i> Grupy Lekcyjne
-            </a>
 
-            <a href="{% url 'ograniczenia_nauczycieli' %}" class="nav-link {% if '/ograniczenia/nauczyciele/' in request.path %}active{% endif %}">
-                <i class="fas fa-user-clock"></i> Ogr. Nauczycieli
-            </a>
-            <a href="{% url 'ograniczenia_klas' %}" class="nav-link {% if '/ograniczenia/klasy/' in request.path %}active{% endif %}">
-                <i class="fas fa-school-flag"></i> Ogr. Klas
-            </a>
+            {% if user.is_staff %}
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0 10px 0;">
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; padding-left: 15px; font-weight: bold;">Zarządzanie</span>
+                </div>
 
+                <a href="{% url 'wymagania' %}" class="nav-link {% if '/wymagania/' in request.path %}active{% endif %}">
+                    <i class="fas fa-list-check"></i> Wymagania
+                </a>
+                <a href="{% url 'grupy' %}" class="nav-link {% if '/grupy/' in request.path %}active{% endif %}">
+                    <i class="fas fa-users-rectangle"></i> Grupy Lekcyjne
+                </a>
 
+                <a href="{% url 'ograniczenia_nauczycieli' %}" class="nav-link {% if '/ograniczenia/nauczyciele/' in request.path %}active{% endif %}">
+                    <i class="fas fa-user-clock"></i> Ogr. Nauczycieli
+                </a>
+                <a href="{% url 'ograniczenia_klas' %}" class="nav-link {% if '/ograniczenia/klasy/' in request.path %}active{% endif %}">
+                    <i class="fas fa-school-flag"></i> Ogr. Klas
+                </a>
 
-            <a href="{% url 'lista_nauczycieli' %}" class="nav-link {% if '/nauczyciele/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
-                <i class="fas fa-chalkboard-teacher"></i> Nauczyciele
-            </a>
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0 10px 0;">
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; padding-left: 15px; font-weight: bold;">Słowniki</span>
+                </div>
 
-            <a href="{% url 'lista_przedmiotow' %}" class="nav-link {% if '/przedmioty/' in request.path %}active{% endif %}">
-                <i class="fas fa-book"></i> Przedmioty
-            </a>
+                <a href="{% url 'lista_nauczycieli' %}" class="nav-link {% if '/nauczyciele/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
+                    <i class="fas fa-chalkboard-teacher"></i> Nauczyciele
+                </a>
+                <a href="{% url 'lista_przedmiotow' %}" class="nav-link {% if '/przedmioty/' in request.path %}active{% endif %}">
+                    <i class="fas fa-book"></i> Przedmioty
+                </a>
+                <a href="{% url 'lista_klas' %}" class="nav-link {% if '/klasy/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
+                    <i class="fas fa-users"></i> Klasy
+                </a>
+            {% endif %}
 
-            <a href="{% url 'lista_klas' %}" class="nav-link {% if '/klasy/' in request.path and '/ograniczenia/' not in request.path %}active{% endif %}">
-                <i class="fas fa-users"></i> Klasy
-            </a>
+            <div style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                {% if user.is_authenticated %}
+                    <div style="padding: 0 15px; margin-bottom: 10px; font-size: 0.9em; color: var(--awans-gold);">
+                        <i class="fas fa-user-circle"></i> {{ user.username }}
+                    </div>
 
-            <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
-            <a href="/admin/" class="nav-link" style="color: #cbd5e1;">
-                <i class="fas fa-cogs"></i> Panel Admina
-            </a>
+                    <form action="{% url 'logout' %}" method="post" style="padding: 0 15px;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" style="width: 100%; text-align: left; background: none; border: 1px solid #dc2626; color: #fca5a5;">
+                            <i class="fas fa-sign-out-alt"></i> Wyloguj
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="nav-link" style="color: var(--awans-gold);">
+                        <i class="fas fa-sign-in-alt"></i> Zaloguj (Admin)
+                    </a>
+                {% endif %}
+            </div>
         </nav>
 
         <div class="sidebar-footer">

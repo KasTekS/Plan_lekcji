@@ -116,7 +116,13 @@ USE_I18N = True
 
 USE_TZ = True
 
+# --- PRZEKIEROWANIA LOGOWANIA ---
 
+# Gdzie przekierować po poprawnym zalogowaniu
+LOGIN_REDIRECT_URL = '/'  # '/' to adres Twojej strony głównej (index)
+
+# Gdzie przekierować po wylogowaniu
+LOGOUT_REDIRECT_URL = '/'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
