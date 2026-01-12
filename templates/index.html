@@ -55,6 +55,7 @@
         </div>
     </form>
 </div>
+
 {% if selected_obiekt %}
     <div class="card">
         <h3 style="margin-bottom: 20px; color: var(--awans-navy);">
@@ -65,43 +66,100 @@
             </span>
         </h3>
 
-        <div style="overflow-x: auto;">
-            <table style="text-align: center; border: 1px solid #ddd;">
+        <div class="plan-container desktop-only">
+            <table class="plan-table">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">Nr</th>
-                        <th style="width: 19%;">Poniedziałek</th>
-                        <th style="width: 19%;">Wtorek</th>
-                        <th style="width: 19%;">Środa</th>
-                        <th style="width: 19%;">Czwartek</th>
-                        <th style="width: 19%;">Piątek</th>
+                        <th class="col-number">Nr</th>
+                        <th>Poniedziałek</th>
+                        <th>Wtorek</th>
+                        <th>Środa</th>
+                        <th>Czwartek</th>
+                        <th>Piątek</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for godzina in godziny %}
                     <tr>
-                        <td style="font-weight: bold; background: #f8f9fa;">{{ godzina }}</td>
+                        <td class="col-number-cell">{{ godzina }}</td>
                         {% for dzien in dni %}
-                            <td style="height: 80px; vertical-align: middle;">
-                                {% if plan|get_item:godzina|get_item:dzien %}
-                                    {% with l=plan|get_item:godzina|get_item:dzien %}
-                                        <div style="font-weight: bold; color: var(--awans-navy);">
-                                            {{ l.linia1 }}
+                            {% with l=plan|get_item:godzina|get_item:dzien %}
+                                <td class="lesson-cell {% if l and request.user.is_staff %}editable{% endif %}"
+                                    {% if l and request.user.is_staff %}
+                                        onclick="window.location.href='{% url 'edytuj_pojedyncza_lekcje' l.id %}'"
+                                        title="Kliknij, aby edytować lekcję"
+                                    {% endif %}>
+
+                                    {% if l %}
+                                        <div class="lesson-content">
+                                            <div class="lesson-subject">
+                                                {{ l.linia1 }}
+                                            </div>
+                                            <div class="lesson-details">
+                                                {{ l.linia2 }}
+                                            </div>
+
+                                            {% if l.sala %}
+                                                <div class="lesson-room">
+                                                    <i class="fas fa-door-open"></i> {{ l.sala }}
+                                                </div>
+                                            {% endif %}
+
+                                            {% if request.user.is_staff %}
+                                                <div class="edit-hint">
+                                                    <i class="fas fa-pen"></i>
+                                                </div>
+                                            {% endif %}
                                         </div>
-                                        <div style="font-size: 0.85em; color: #555;">
-                                            {{ l.linia2 }}
-                                        </div>
-                                    {% endwith %}
-                                {% else %}
-                                    <span style="color: #eee;">-</span>
-                                {% endif %}
-                            </td>
+                                    {% else %}
+                                        <span>-</span>
+                                    {% endif %}
+                                </td>
+                            {% endwith %}
                         {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <div class="mobile-plan-view mobile-only">
+            {% for dzien in dni %}
+                <div class="mobile-day-card">
+                    <div class="mobile-day-header">{{ dzien }}</div>
+                    <div class="mobile-day-lessons">
+                        {% for godzina in godziny %}
+                            {% with l=plan|get_item:godzina|get_item:dzien %}
+                                <div class="mobile-lesson-row {% if l and request.user.is_staff %}editable{% endif %}"
+                                     {% if l and request.user.is_staff %}
+                                        onclick="window.location.href='{% url 'edytuj_pojedyncza_lekcje' l.id %}'"
+                                     {% endif %}>
+
+                                    <div class="mobile-lesson-hour">{{ godzina }}</div>
+
+                                    <div class="mobile-lesson-info">
+                                        {% if l %}
+                                            <div class="m-subject">{{ l.linia1 }}</div>
+                                            <div class="m-details">{{ l.linia2 }}</div>
+                                            {% if l.sala %}
+                                                <div class="m-room"><i class="fas fa-door-open"></i> {{ l.sala }}</div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="m-empty">-</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if l and request.user.is_staff %}
+                                        <div class="mobile-edit-icon"><i class="fas fa-pen"></i></div>
+                                    {% endif %}
+                                </div>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
     </div>
 {% else %}
     <div class="alert alert-info" style="border-left: 5px solid var(--awans-navy);">
@@ -110,7 +168,6 @@
 {% endif %}
 
 <script>
-    // Funkcja czyszcząca drugie pole select przed wysłaniem formularza
     function clearAndSubmit(idToClear) {
         document.getElementById(idToClear).value = "";
         document.getElementById('filterForm').submit();

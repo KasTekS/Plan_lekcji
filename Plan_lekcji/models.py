@@ -101,6 +101,9 @@ class PlanLekcji(models.Model):
     godzina_lekcyjna = models.IntegerField(blank=True, null=True)
     grupa = models.ForeignKey(Grupylekcyjne, models.DO_NOTHING, db_column='id_grupy', blank=True, null=True)
 
+    # NOWE POLE
+    sala = models.CharField(max_length=10, blank=True, null=True)
+
     class Meta:
         managed = False
         db_table = 'plan_lekcji'

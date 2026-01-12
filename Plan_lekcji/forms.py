@@ -1,5 +1,5 @@
 from django import forms
-from .models import Nauczyciel, Klasa, Przedmioty, Grupylekcyjne, WymaganiaPrzedmiotowe, Klasywgrupach
+from .models import Nauczyciel, Klasa, Przedmioty, Grupylekcyjne, WymaganiaPrzedmiotowe, Klasywgrupach, PlanLekcji
 
 
 # --- Stylizacja pól formularza ---
@@ -111,3 +111,14 @@ class GrupaForm(StyledModelForm):
                 Klasywgrupach.objects.create(grupa=grupa, klasa=klasa_obj)
 
         return grupa
+
+class EdycjaLekcjiForm(StyledModelForm):
+    class Meta:
+        model = PlanLekcji
+        # Możesz tu dodać też inne pola, jeśli chcesz pozwolić na ich zmianę z poziomu planu
+        fields = ['przedmiot', 'nauczyciel', 'sala']
+        labels = {
+            'przedmiot': 'Przedmiot',
+            'nauczyciel': 'Nauczyciel prowadzący',
+            'sala': 'Numer sali/klasy'
+        }

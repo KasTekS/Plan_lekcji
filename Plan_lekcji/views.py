@@ -9,7 +9,7 @@ import json
 
 from .forms import (
     NauczycielForm, KlasaForm, PrzedmiotForm,
-    WymaganieForm, GrupaForm
+    WymaganieForm, GrupaForm, EdycjaLekcjiForm
 )
 from .models import (
     WymaganiaPrzedmiotowe, Grupylekcyjne, PlanLekcji,
@@ -97,6 +97,8 @@ def index(request):
                     info_dodatkowe = "-"
 
                 temp_plan[godz][dzien] = {
+                    'id': lekcja.id,  # POTRZEBNE DO EDYCJI
+                    'sala': lekcja.sala,  # NOWE POLE
                     'linia1': nazwa_przedmiotu,
                     'linia2': info_dodatkowe
                 }
@@ -124,6 +126,8 @@ def index(request):
                 nauczyciel = lekcja.nauczyciel.imie_nazwisko if lekcja.nauczyciel else "Brak"
 
                 temp_plan[godz][dzien] = {
+                    'id': lekcja.id,  # POTRZEBNE DO EDYCJI
+                    'sala': lekcja.sala,  # NOWE POLE
                     'linia1': nazwa_przedmiotu,
                     'linia2': nauczyciel
                 }
@@ -417,3 +421,43 @@ def usun_klase(request, pk):
         obj.delete()
         messages.success(request, 'Klasa usunięta.')
     return redirect('lista_klas')
+
+
+
+# W pliku views.py
+
+@user_passes_test(is_admin)
+def edytuj_pojedyncza_lekcje(request, pk):
+    lekcja = get_object_or_404(PlanLekcji, pk=pk)
+
+    # Pobieramy adres strony, z której przyszedł użytkownik (Referer)
+    # Dzięki temu wrócimy dokładnie do tego samego widoku (Klasy lub Nauczyciela)
+    referer = request.META.get('HTTP_REFERER') or '/'
+
+    if request.method == 'POST':
+        form = EdycjaLekcjiForm(request.POST, instance=lekcja)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Zaktualizowano lekcję na planie.')
+
+            # Pobieramy adres powrotu z ukrytego pola (jeśli zostało przesłane) lub z sesji
+            return_url = request.POST.get('return_url', '/')
+
+            # Jeśli return_url to tylko sam ukośnik (nie zadziałało), próbujemy logiki:
+            if return_url == '/':
+                if lekcja.klasa:
+                    return redirect(f"/?klasa_id={lekcja.klasa.id}")
+                elif lekcja.nauczyciel:
+                    return redirect(f"/?nauczyciel_id={lekcja.nauczyciel.id}")
+                else:
+                    return redirect('index')
+
+            return redirect(return_url)
+    else:
+        form = EdycjaLekcjiForm(instance=lekcja)
+
+    return render(request, 'slowniki/formularz_bazowy.html', {
+        'form': form,
+        'tytul': f'Edycja lekcji: {lekcja.dzien_tygodnia} godz. {lekcja.godzina_lekcyjna}',
+        'return_url': referer  # Przekazujemy referer do template'u
+    })

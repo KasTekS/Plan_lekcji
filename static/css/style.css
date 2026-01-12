@@ -7,6 +7,7 @@
     --bg-light: #f3f4f6;        /* Jasne tło treści */
     --text-dark: #1f2937;       /* Ciemny tekst */
     --text-light: #f9fafb;      /* Jasny tekst */
+    --border-color: #cbd5e1;    /* Kolor obramowań */
     --sidebar-width: 280px;
 }
 
@@ -24,7 +25,7 @@ body {
     min-height: 100vh;
 }
 
-/* --- SIDEBAR (Pasek boczny) --- */
+/* --- SIDEBAR --- */
 .sidebar {
     width: var(--sidebar-width);
     background-color: var(--awans-navy);
@@ -60,6 +61,7 @@ body {
 .sidebar-nav {
     padding: 1.5rem 1rem;
     flex-grow: 1;
+    overflow-y: auto;
 }
 
 .nav-link {
@@ -96,7 +98,7 @@ body {
     color: #94a3b8;
 }
 
-/* --- MAIN CONTENT (Główna treść) --- */
+/* --- GŁÓWNA TREŚĆ --- */
 .main-content {
     margin-left: var(--sidebar-width);
     flex-grow: 1;
@@ -117,7 +119,7 @@ body {
     color: var(--awans-navy);
 }
 
-/* --- KARTY (Kontenery) --- */
+/* --- KARTY --- */
 .card {
     background: white;
     border-radius: 12px;
@@ -127,53 +129,264 @@ body {
     border-top: 4px solid var(--awans-gold);
 }
 
-/* --- NOWOCZESNE TABELE (Naprawione style) --- */
-.table-responsive {
+/* --- STYL PLANU LEKCJI (TABELA - DESKTOP) --- */
+.plan-container {
     overflow-x: auto;
-    border-radius: 8px;
-}
-
-table {
     width: 100%;
-    border-collapse: separate; /* Ważne dla zaokrągleń */
-    border-spacing: 0;
-    margin-top: 0.5rem;
-    font-size: 0.95rem;
 }
 
-thead th {
+table.plan-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+table.plan-table thead th {
     background-color: var(--awans-navy);
     color: white;
-    padding: 16px 15px;
+    padding: 12px 5px;
     font-weight: 600;
-    text-align: left;
     text-transform: uppercase;
+    text-align: center;
+    font-size: 0.85rem;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    width: calc((100% - 50px) / 5);
+}
+
+table.plan-table thead th.col-number {
+    width: 50px;
+    background-color: var(--awans-navy-dark);
+}
+
+table.plan-table tbody td {
+    border: 1px solid var(--border-color);
+    padding: 0;
+    height: 100px;
+    vertical-align: top;
+    background-color: #fff;
+}
+
+table.plan-table tbody td.col-number-cell {
+    width: 50px;
+    background-color: #f8fafc;
+    vertical-align: middle;
+    text-align: center;
+    font-weight: bold;
+    color: var(--awans-navy);
+    border-right: 2px solid var(--border-color);
+    font-size: 1.1rem;
+}
+
+/* WNĘTRZE LEKCJI (Desktop) */
+.lesson-cell {
+    height: 100px;
+    width: 100%;
+    vertical-align: middle;
+    text-align: center;
+    position: relative;
+}
+
+.lesson-cell span {
+    display: inline-block;
+    color: #cbd5e1;
+    font-size: 1.2rem;
+}
+
+.lesson-content {
+    background-color: #ffffff;
+    padding: 6px 8px;
+    margin: 4px;
+    border-radius: 4px;
+    border-left: 4px solid var(--awans-navy);
+    background: linear-gradient(to right, #f8fafc, #ffffff);
+    height: calc(100% - 8px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.lesson-subject {
+    font-weight: 700;
+    color: var(--awans-navy);
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lesson-details {
     font-size: 0.8rem;
-    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lesson-room {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    text-align: right;
+    margin-top: auto;
+}
+
+.lesson-room i {
+    color: var(--awans-gold-hover);
+    margin-right: 3px;
+}
+
+.lesson-cell.editable { cursor: pointer; }
+.lesson-cell.editable:hover { background-color: #e0f2fe; }
+.lesson-cell.editable:hover .lesson-content {
+    background: #ffffff;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    border-left-color: var(--awans-gold);
+}
+.edit-hint {
+    display: none;
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    color: var(--awans-navy);
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+.lesson-content:hover .edit-hint { display: block; }
+
+
+/* --- STYL PLANU LEKCJI (MOBILE VIEW - NOWY) --- */
+.mobile-plan-view {
+    display: none; /* Domyślnie ukryte na desktopie */
+}
+
+.mobile-day-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.mobile-day-header {
+    background-color: var(--awans-navy);
+    color: white;
+    padding: 10px 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-align: center;
     border-bottom: 3px solid var(--awans-gold);
 }
 
-/* Zaokrąglanie górnych rogów tabeli */
-thead tr:first-child th:first-child { border-top-left-radius: 8px; }
-thead tr:first-child th:last-child { border-top-right-radius: 8px; }
-
-tbody td {
-    padding: 14px 15px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
-    vertical-align: middle;
+.mobile-lesson-row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid #f1f5f9;
+    min-height: 50px;
 }
 
-tbody tr:hover {
-    background-color: #f1f5f9;
-    transition: background-color 0.2s ease;
-}
-
-tbody tr:last-child td {
+.mobile-lesson-row:last-child {
     border-bottom: none;
 }
 
-/* Plakietki (Badges) w tabelach */
+.mobile-lesson-hour {
+    width: 50px;
+    background-color: #f8fafc;
+    color: var(--awans-navy);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    border-right: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.mobile-lesson-info {
+    flex-grow: 1;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.m-subject {
+    font-weight: 700;
+    color: var(--awans-navy);
+    margin-bottom: 2px;
+}
+
+.m-details {
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.m-room {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 4px;
+    font-weight: 600;
+}
+.m-room i { color: var(--awans-gold); margin-right: 4px; }
+
+.m-empty {
+    color: #cbd5e1;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.mobile-edit-icon {
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+}
+
+/* Interakcje w mobile */
+.mobile-lesson-row.editable { cursor: pointer; }
+.mobile-lesson-row.editable:active { background-color: #e0f2fe; }
+
+/* --- WIDOCZNOŚĆ --- */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+
+
+/* --- POZOSTAŁE TABELE (Wymagania, Słowniki) --- */
+.card table:not(.plan-table):not(.grid-table) {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 0.5rem;
+}
+
+.card table:not(.plan-table):not(.grid-table) thead th {
+    background-color: var(--awans-navy);
+    color: white;
+    padding: 16px 15px;
+    text-align: left;
+    border-bottom: 3px solid var(--awans-gold);
+}
+
+.card table:not(.plan-table):not(.grid-table) thead tr:first-child th:first-child { border-top-left-radius: 8px; }
+.card table:not(.plan-table):not(.grid-table) thead tr:first-child th:last-child { border-top-right-radius: 8px; }
+
+.card table:not(.plan-table):not(.grid-table) tbody td {
+    padding: 14px 15px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+/* --- PRZYCISKI, BADGES --- */
 .badge-class {
     background-color: #e0f2fe;
     color: #0369a1;
@@ -181,37 +394,8 @@ tbody tr:last-child td {
     border-radius: 6px;
     font-weight: 600;
     font-size: 0.85rem;
-    display: inline-block;
 }
 
-.badge-hours {
-    background-color: #f1f5f9;
-    color: #475569;
-    width: 30px;
-    height: 30px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-weight: bold;
-}
-
-/* Ikony akcji w tabelach */
-.action-btn {
-    border: none;
-    background: none;
-    cursor: pointer;
-    color: #94a3b8;
-    font-size: 1.1rem;
-    margin: 0 5px;
-    transition: color 0.2s;
-}
-
-.action-btn:hover { color: var(--awans-navy); }
-.action-btn.delete:hover { color: #dc2626; }
-
-
-/* --- PRZYCISKI --- */
 .btn {
     display: inline-block;
     padding: 0.6rem 1.2rem;
@@ -219,66 +403,28 @@ tbody tr:last-child td {
     text-decoration: none;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
     border: none;
+    transition: background 0.2s;
 }
 
-.btn-primary {
-    background-color: var(--awans-navy);
-    color: white;
-}
-.btn-primary:hover {
-    background-color: var(--awans-navy-dark);
-}
+.btn-primary { background-color: var(--awans-navy); color: white; }
+.btn-primary:hover { background-color: var(--awans-navy-dark); }
+.btn-gold { background-color: var(--awans-gold); color: var(--awans-navy); }
+.btn-gold:hover { background-color: var(--awans-gold-hover); }
+.btn-danger { background-color: #dc2626; color: white; }
 
-.btn-gold {
-    background-color: var(--awans-gold);
-    color: var(--awans-navy);
+.action-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    margin: 0 5px;
 }
-.btn-gold:hover {
-    background-color: var(--awans-gold-hover);
-}
+.action-btn:hover { color: var(--awans-navy); }
+.action-btn.delete:hover { color: #dc2626; }
 
-.btn-danger {
-    background-color: #dc2626;
-    color: white;
-}
-
-.btn-sm {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.875rem;
-}
-
-/* --- FORMULARZE OGÓLNE --- */
-.form-group {
-    margin-bottom: 1rem;
-}
-.form-control {
-    width: 100%;
-    padding: 0.7rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 1rem;
-}
-.form-control:focus {
-    outline: none;
-    border-color: var(--awans-navy);
-    box-shadow: 0 0 0 3px rgba(0, 51, 153, 0.2);
-}
-
-/* --- KOMUNIKATY (Alerts) --- */
-.alert {
-    padding: 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-}
-.alert-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-.alert-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-.alert-info { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-
-
-/* --- NOWY STYL FILTRÓW (Dashboard Style - Side by Side) --- */
-
+/* --- FILTRY --- */
 .filters-container {
     background: white;
     border-radius: 12px;
@@ -297,275 +443,96 @@ tbody tr:last-child td {
     margin: 0 auto;
 }
 
-.filter-box {
-    flex: 1;
-    position: relative;
-}
-
+.filter-box { flex: 1; position: relative; }
 .filter-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--awans-navy);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    display: block; margin-bottom: 0.5rem; font-size: 0.85rem;
+    font-weight: 700; color: var(--awans-navy); text-transform: uppercase;
 }
 
-/* Stylizacja pól Select w filtrach */
-.styled-select {
+.styled-select, .form-control {
     width: 100%;
-    padding: 12px 15px;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
     font-size: 1rem;
-    color: #333;
-    background-color: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    appearance: none;
-    /* Strzałka SVG zakodowana jako tło */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23003399' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 15px center;
 }
 
-.styled-select:hover {
-    border-color: #cbd5e1;
-    background-color: #fff;
-}
-
-.styled-select:focus {
-    outline: none;
-    border-color: var(--awans-navy);
-    box-shadow: 0 0 0 4px rgba(0, 51, 153, 0.1);
-    background-color: #fff;
-}
-
-/* Separator LUB */
 .filter-separator {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1rem;
+    display: flex; flex-direction: column; align-items: center; padding: 0 1rem;
 }
-
-.separator-line {
-    height: 40px;
-    width: 1px;
-    background-color: #e2e8f0;
-    margin: 5px 0;
-}
-
+.separator-line { height: 40px; width: 1px; background-color: #e2e8f0; margin: 5px 0; }
 .separator-text {
-    background-color: var(--bg-light);
-    color: #64748b;
-    font-size: 0.75rem;
-    font-weight: bold;
-    padding: 5px 10px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    text-transform: uppercase;
+    background-color: var(--bg-light); color: #64748b; font-size: 0.75rem;
+    font-weight: bold; padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 20px;
 }
 
-@media (max-width: 768px) {
-    .filters-wrapper {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .separator-line { display: none; }
-    .filter-separator { width: 100%; flex-direction: row; }
-}
-
-/* --- STYLE DO GRIDU OGRANICZEŃ (Nowe) --- */
-
+/* --- GRID OGRANICZEŃ --- */
 .grid-container {
     overflow-x: auto;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     padding: 1rem;
     border-top: 4px solid var(--awans-navy);
 }
 
 .grid-table {
     width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
+    border-collapse: separate;
+    border-spacing: 4px;
     text-align: center;
 }
 
 .grid-table th {
-    background-color: #334155; /* Ciemniejszy nagłówek dla gridu */
+    background-color: #334155;
     color: white;
-    padding: 8px 4px;
-    border: 1px solid #475569;
-    font-weight: 600;
-}
-
-.grid-table .th-name {
-    min-width: 200px;
-    text-align: left;
-    padding-left: 10px;
-    position: sticky;
-    left: 0;
-    background-color: #334155; /* Żeby nie prześwitywało przy scrollowaniu */
-    z-index: 10;
+    padding: 8px;
+    border-radius: 4px;
 }
 
 .grid-table td {
-    border: 1px solid #cbd5e1;
-    padding: 0;
-    height: 30px;
-    width: 30px;
-    min-width: 30px;
+    height: 35px;
+    width: 35px;
+    padding: 0 !important;
 }
 
-/* Pierwsza kolumna (nazwiska) sticky */
 .grid-table td.td-name {
     position: sticky;
     left: 0;
     background-color: #f8fafc;
-    z-index: 5;
     text-align: left;
-    padding: 5px 10px;
+    padding: 5px 10px !important;
     font-weight: 600;
     color: var(--awans-navy);
-    border-right: 2px solid #94a3b8;
+    width: auto;
+    height: auto;
+    border-radius: 4px;
 }
 
-/* Komórki interaktywne */
 .grid-cell {
     width: 100%;
     height: 100%;
     display: block;
     cursor: pointer;
-    transition: background-color 0.1s;
-}
-
-/* Stan: Wolny (Biały) */
-.grid-cell.free {
-    background-color: #ffffff;
-}
-.grid-cell.free:hover {
-    background-color: #e2e8f0;
-}
-
-/* Stan: Zablokowany (Czerwony) */
-.grid-cell.blocked {
-    background-color: #dc2626; /* Czerwień */
-}
-.grid-cell.blocked:hover {
-    background-color: #b91c1c;
-}
-/* W pliku style.css */
-.form-group ul {
-    list-style-type: none;
-    padding-left: 0;
-    max-height: 200px; /* Ograniczenie wysokości dla dużej liczby klas */
-    overflow-y: auto;
-    border: 1px solid #e2e8f0;
-    padding: 10px;
-    border-radius: 6px;
-    background-color: #f8fafc;
-}
-
-.form-group ul li {
-    margin-bottom: 5px;
-}
-
-.form-group ul li label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: normal !important; /* Nadpisanie pogrubienia labeli z forms */
-    cursor: pointer;
-}
-/* --- STYLIZACJA CHECKBOXÓW JAKO KAFELKI (Nowe) --- */
-
-/* Kontener na siatkę */
-/* Wrapper główny */
-.checkbox-grid {
-    width: 100%;
-    margin-top: 5px;
-}
-
-/* To jest kluczowa poprawka.
-   Django generuje listę <ul> z klasą .form-control (przez forms.py).
-   Musimy nadpisać jej style, aby stała się siatką.
-*/
-.checkbox-grid ul,
-.checkbox-grid .form-control {
-    display: grid !important;
-    /* Kafelki: minimum 140px, a jeśli jest miejsce, to się rozciągają (1fr) */
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-    gap: 12px !important;
-
-    /* Resetujemy style, które "psuły" wygląd (dziedziczone z .form-control) */
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-    width: 100% !important;
-    height: auto !important;
-    list-style: none !important;
-}
-
-/* Pojedynczy element listy (kontener dla labela) */
-.checkbox-grid li {
-    display: flex; /* Ważne: pozwala labelowi wypełnić całą wysokość */
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Wygląd kafelka (Label) */
-.checkbox-grid label {
-    display: flex;
-    align-items: center;
-    width: 100%; /* Rozciągnij na całą szerokość komórki siatki */
-    background-color: white;
-    border: 1px solid #cbd5e1; /* Delikatniejsza ramka */
-    border-radius: 6px;
-    padding: 10px 12px;
-    cursor: pointer;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     transition: all 0.2s ease;
-    font-size: 0.95rem;
-    color: var(--text-dark);
-    font-weight: 500;
-    user-select: none;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-/* Hover na kafelku */
-.checkbox-grid label:hover {
-    border-color: var(--awans-navy);
-    background-color: #f1f5f9;
-    transform: translateY(-1px);
-}
+.grid-cell.free { background-color: #ffffff; border: 2px solid #cbd5e1; }
+.grid-cell.free:hover { background-color: #f1f5f9; border-color: #94a3b8; transform: scale(1.1); }
+.grid-cell.blocked { background-color: #dc2626; border: 2px solid #b91c1c; }
+.grid-cell.blocked:hover { background-color: #ef4444; transform: scale(1.1); }
 
-/* Checkbox input wewnątrz kafelka */
-.checkbox-grid input[type="checkbox"] {
-    transform: scale(1.4);
-    margin-right: 10px;
-    cursor: pointer;
-    accent-color: var(--awans-navy);
-    /* Reset stylów inputa, żeby nie wyglądał jak pole tekstowe */
-    width: auto !important;
-    height: auto !important;
-    border: none !important;
-    box-shadow: none !important;
-    display: inline-block !important;
-}
 
-/* --- STAN ZAZNACZONY --- */
-/* Kiedy input jest zaznaczony, zmieniamy styl całego labela */
-.checkbox-grid label:has(input:checked) {
-    border-color: var(--awans-navy);
-    border-width: 2px; /* Grubsza ramka dla zaznaczonego */
-    background-color: #eff6ff; /* Bardzo jasny niebieski */
-    color: var(--awans-navy-dark);
-    font-weight: 600;
-    padding: 9px 11px; /* Korekta paddingu o -1px przez grubszą ramkę, żeby nie skakało */
+/* --- RESPANSYWNOŚĆ --- */
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main-content { margin-left: 0; width: 100%; padding: 10px; }
+    .filters-wrapper { flex-direction: column; gap: 1rem; }
+    .separator-line { display: none; }
+
+    /* PRZEŁĄCZANIE WIDOKÓW */
+    .desktop-only { display: none; }
+    .mobile-only { display: block; }
 }
