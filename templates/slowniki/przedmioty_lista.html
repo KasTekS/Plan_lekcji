@@ -10,12 +10,40 @@
     </a>
 </div>
 
+<div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+    <form method="get" style="display: flex; gap: 10px;">
+        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Szukaj przedmiotu lub skrótu..." style="flex-grow: 1;">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Szukaj
+        </button>
+        {% if search_query %}
+            <a href="{% url 'lista_przedmiotow' %}" class="btn btn-danger" title="Wyczyść filtry">
+                <i class="fas fa-times"></i>
+            </a>
+        {% endif %}
+    </form>
+</div>
+
 <div class="card">
     <table>
         <thead>
             <tr>
-                <th>Nazwa Przedmiotu</th>
-                <th>Skrót</th>
+                <th>
+                    <a href="?sort={% if current_sort == 'nazwa_przedmiotu' %}-nazwa_przedmiotu{% else %}nazwa_przedmiotu{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                        Nazwa Przedmiotu
+                        {% if current_sort == 'nazwa_przedmiotu' %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% if current_sort == '-nazwa_przedmiotu' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                </th>
+                <th style="width: 150px;">
+                    <a href="?sort={% if current_sort == 'skrot' %}-skrot{% else %}skrot{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                        Skrót
+                        {% if current_sort == 'skrot' %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% if current_sort == '-skrot' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                </th>
                 <th style="text-align: right; width: 150px;">Akcje</th>
             </tr>
         </thead>
@@ -34,6 +62,12 @@
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 20px; color: #666;">
+                    Brak przedmiotów pasujących do wyszukiwania.
                 </td>
             </tr>
             {% endfor %}

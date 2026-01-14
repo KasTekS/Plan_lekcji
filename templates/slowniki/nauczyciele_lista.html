@@ -10,11 +10,33 @@
     </a>
 </div>
 
+<div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+    <form method="get" style="display: flex; gap: 10px;">
+        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Szukaj nauczyciela..." style="flex-grow: 1;">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Szukaj
+        </button>
+        {% if search_query %}
+            <a href="{% url 'lista_nauczycieli' %}" class="btn btn-danger" title="Wyczyść filtry">
+                <i class="fas fa-times"></i>
+            </a>
+        {% endif %}
+    </form>
+</div>
+
 <div class="card">
     <table>
         <thead>
             <tr>
-                <th>Imię i Nazwisko</th>
+                <th>
+                    <a href="?sort={% if current_sort == 'imie_nazwisko' %}-imie_nazwisko{% else %}imie_nazwisko{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none; display: flex; align-items: center; justify-content: space-between;">
+                        Imię i Nazwisko
+                        {% if current_sort == 'imie_nazwisko' %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% if current_sort == '-imie_nazwisko' %}<i class="fas fa-sort-up"></i>{% endif %}
+                        {% if 'imie_nazwisko' not in current_sort %}<i class="fas fa-sort" style="opacity: 0.3;"></i>{% endif %}
+                    </a>
+                </th>
                 <th style="text-align: right; width: 150px;">Akcje</th>
             </tr>
         </thead>
@@ -32,6 +54,12 @@
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2" style="text-align: center; padding: 20px; color: #666;">
+                    Nie znaleziono nauczycieli pasujących do zapytania.
                 </td>
             </tr>
             {% endfor %}

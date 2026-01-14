@@ -10,20 +10,71 @@
     </a>
 </div>
 
-<div class="card">
-    <h3>Zdefiniowane grupy międzyoddziałowe</h3>
-    <p style="color: #666; margin-bottom: 1rem;">
-        Poniżej znajdują się grupy łączące uczniów z różnych klas (np. WF, Języki).
-    </p>
+<div class="filters-container" style="padding: 1.5rem; margin-bottom: 2rem; border-top: 4px solid var(--awans-navy);">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
 
+        <div style="flex: 1; min-width: 300px;">
+            <label class="filter-label">Szukaj:</label>
+            <input type="text" name="q" value="{{ search_query }}" class="form-control"
+                   placeholder="Nazwa grupy, klasa (np. 1A) lub przedmiot...">
+        </div>
+
+        <div style="flex: 1; min-width: 250px;">
+            <label class="filter-label">Opiekun grupy:</label>
+            <select name="nauczyciel_id" class="styled-select">
+                <option value="">-- Wszyscy --</option>
+                {% for n in nauczyciele %}
+                    <option value="{{ n.id }}" {% if n.id|stringformat:"s" == selected_nauczyciel_id %}selected{% endif %}>
+                        {{ n.imie_nazwisko }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Filtruj
+            </button>
+            {% if search_query or selected_nauczyciel_id %}
+                <a href="{% url 'grupy' %}" class="btn btn-danger" title="Wyczyść">
+                    <i class="fas fa-times"></i>
+                </a>
+            {% endif %}
+        </div>
+
+        <input type="hidden" name="sort" value="{{ current_sort }}">
+    </form>
+</div>
+
+<div class="card">
     <table>
         <thead>
             <tr>
-                <th>Nazwa Grupy</th>
-                <th>Przedmiot</th>
-                <th>Nauczyciel</th>
+                <th>
+                    <a href="?sort={% if current_sort == 'nazwa_grupy' %}-nazwa_grupy{% else %}nazwa_grupy{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}"
+                       style="color: white; text-decoration: none;">Nazwa Grupy
+                       {% if 'nazwa_grupy' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="?sort={% if current_sort == 'przedmiot' %}-przedmiot{% else %}przedmiot{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}"
+                       style="color: white; text-decoration: none;">Przedmiot
+                       {% if 'przedmiot' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="?sort={% if current_sort == 'nauczyciel' %}-nauczyciel{% else %}nauczyciel{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}"
+                       style="color: white; text-decoration: none;">Nauczyciel
+                       {% if 'nauczyciel' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
                 <th>Przypisane Klasy</th>
-                <th>Liczba Godzin</th>
+                <th style="text-align: center;">
+                    <a href="?sort={% if current_sort == 'godziny' %}-godziny{% else %}godziny{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}"
+                       style="color: white; text-decoration: none;">Liczba Godzin
+                       {% if 'godziny' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
                 <th>Akcje</th>
             </tr>
         </thead>
@@ -35,8 +86,9 @@
                 <td>{{ grupa.nauczyciel.imie_nazwisko }}</td>
                 <td>
                     {% for klasa in grupa.klasy.all %}
+                        {# Podświetlenie szukanej klasy (opcjonalny bajer CSS, tutaj po prostu wyświetlamy) #}
                         <span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 4px;">
-                            {{ klasa.nazwa }}
+                            {{ klasa.nazwa|default:klasa.id }}
                         </span>
                     {% empty %}
                         <span style="color: #999; font-style: italic;">Brak klas</span>
@@ -57,8 +109,8 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center; padding: 2rem;">
-                    Brak zdefiniowanych grup.
+                <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+                    Brak zdefiniowanych grup dla wybranych filtrów.
                 </td>
             </tr>
             {% endfor %}

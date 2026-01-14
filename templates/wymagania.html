@@ -10,24 +10,82 @@
     </a>
 </div>
 
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <div>
-            <h3 style="margin: 0; color: var(--awans-navy);">Lista zdefiniowanych zajęć</h3>
-            <p style="color: #64748b; font-size: 0.9em; margin: 5px 0 0 0;">
-                Zarządzaj przydziałem godzin dla nauczycieli i klas.
-            </p>
-        </div>
-    </div>
+<div class="filters-container" style="padding: 1.5rem; margin-bottom: 2rem; border-top: 4px solid var(--awans-navy);">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
 
+        <div style="flex: 1; min-width: 200px;">
+            <label class="filter-label">Szukaj przedmiotu:</label>
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Np. Matematyka...">
+        </div>
+
+        <div style="flex: 1; min-width: 200px;">
+            <label class="filter-label">Nauczyciel:</label>
+            <select name="nauczyciel_id" class="styled-select">
+                <option value="">-- Wszyscy --</option>
+                {% for n in nauczyciele %}
+                    <option value="{{ n.id }}" {% if n.id|stringformat:"s" == selected_nauczyciel_id %}selected{% endif %}>
+                        {{ n.imie_nazwisko }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label class="filter-label">Klasa:</label>
+            <select name="klasa_id" class="styled-select">
+                <option value="">-- Wszystkie --</option>
+                {% for k in klasy %}
+                    <option value="{{ k.id }}" {% if k.id|stringformat:"s" == selected_klasa_id %}selected{% endif %}>
+                        {{ k.id }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <button type="submit" class="btn btn-primary" title="Filtruj">
+                <i class="fas fa-filter"></i> Filtruj
+            </button>
+            {% if search_query or selected_nauczyciel_id or selected_klasa_id %}
+                <a href="{% url 'wymagania' %}" class="btn btn-danger" title="Wyczyść">
+                    <i class="fas fa-times"></i>
+                </a>
+            {% endif %}
+        </div>
+
+        <input type="hidden" name="sort" value="{{ current_sort }}">
+    </form>
+</div>
+
+<div class="card">
     <div class="table-responsive">
         <table>
             <thead>
                 <tr>
-                    <th style="width: 25%;">Nauczyciel</th>
-                    <th style="width: 20%;">Klasa</th>
-                    <th style="width: 35%;">Przedmiot</th>
-                    <th style="width: 10%; text-align: center;">Godziny</th>
+                    <th style="width: 25%;">
+                        <a href="?sort={% if current_sort == 'nauczyciel' %}-nauczyciel{% else %}nauczyciel{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
+                           style="color: white; text-decoration: none;">Nauczyciel
+                           {% if 'nauczyciel' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="width: 20%;">
+                        <a href="?sort={% if current_sort == 'klasa' %}-klasa{% else %}klasa{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
+                           style="color: white; text-decoration: none;">Klasa
+                           {% if 'klasa' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="width: 35%;">
+                        <a href="?sort={% if current_sort == 'przedmiot' %}-przedmiot{% else %}przedmiot{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
+                           style="color: white; text-decoration: none;">Przedmiot
+                           {% if 'przedmiot' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="width: 10%; text-align: center;">
+                        <a href="?sort={% if current_sort == 'godziny' %}-godziny{% else %}godziny{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
+                           style="color: white; text-decoration: none;">Godziny
+                           {% if 'godziny' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                        </a>
+                    </th>
                     <th style="width: 10%; text-align: right;">Akcje</th>
                 </tr>
             </thead>
@@ -39,8 +97,8 @@
                     </td>
                     <td>
                         <span class="badge-class">
-                            <i class="fas fa-users-class" style="font-size: 0.8em; margin-right: 4px;"></i>
-                            {{ wpis.klasa.nazwa }}
+                            <i class="fas fa-users" style="font-size: 0.8em; margin-right: 4px;"></i>
+                            {{ wpis.klasa.nazwa|default:wpis.klasa.id }}
                         </span>
                     </td>
                     <td>{{ wpis.przedmiot.nazwa_przedmiotu }}</td>
@@ -63,7 +121,7 @@
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 3rem; color: #94a3b8;">
                         <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
-                        Brak zdefiniowanych wymagań.
+                        Brak wymagań spełniających kryteria.
                     </td>
                 </tr>
                 {% endfor %}

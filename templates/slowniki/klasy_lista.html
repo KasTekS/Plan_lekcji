@@ -10,14 +10,48 @@
     </a>
 </div>
 
+<div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+    <form method="get" style="display: flex; gap: 10px;">
+        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Szukaj klasy (ID lub nazwa)..." style="flex-grow: 1;">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Szukaj
+        </button>
+        {% if search_query %}
+            <a href="{% url 'lista_klas' %}" class="btn btn-danger" title="Wyczyść filtry">
+                <i class="fas fa-times"></i>
+            </a>
+        {% endif %}
+    </form>
+</div>
+
 <div class="card">
     <table>
         <thead>
             <tr>
-                <th>Symbol (ID)</th>
-                <th>Nazwa</th>
-                <th>Rocznik</th>
-                <th>Liczba osób</th>
+                <th>
+                    <a href="?sort={% if current_sort == 'id' %}-id{% else %}id{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none;">Symbol (ID)
+                       {% if 'id' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="?sort={% if current_sort == 'nazwa' %}-nazwa{% else %}nazwa{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none;">Nazwa
+                       {% if 'nazwa' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="?sort={% if current_sort == 'rok' %}-rok{% else %}rok{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none;">Rocznik
+                       {% if 'rok' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="?sort={% if current_sort == 'ilosc_osob' %}-ilosc_osob{% else %}ilosc_osob{% endif %}&q={{ search_query }}"
+                       style="color: white; text-decoration: none;">Liczba osób
+                       {% if 'ilosc_osob' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
+                    </a>
+                </th>
                 <th style="text-align: right; width: 150px;">Akcje</th>
             </tr>
         </thead>
@@ -38,6 +72,12 @@
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                    Brak klas pasujących do kryteriów.
                 </td>
             </tr>
             {% endfor %}

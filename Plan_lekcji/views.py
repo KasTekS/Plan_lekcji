@@ -150,9 +150,57 @@ def index(request):
 
 @user_passes_test(is_admin)
 def wymagania(request):
-    wymagania_lista = WymaganiaPrzedmiotowe.objects.all().select_related('nauczyciel', 'klasa', 'przedmiot')
-    return render(request, 'wymagania.html', {'wymagania': wymagania_lista})
+    # Parametry filtrowania
+    search_query = request.GET.get('q', '')
+    nauczyciel_id = request.GET.get('nauczyciel_id', '')
+    klasa_id = request.GET.get('klasa_id', '')
+    sort_by = request.GET.get('sort', 'id')
 
+    # Baza zapytań
+    wymagania_lista = WymaganiaPrzedmiotowe.objects.all().select_related('nauczyciel', 'klasa', 'przedmiot')
+
+    # 1. Filtrowanie
+    if search_query:
+        # Szukamy po nazwie przedmiotu lub skrócie
+        wymagania_lista = wymagania_lista.filter(
+            Q(przedmiot__nazwa_przedmiotu__icontains=search_query) |
+            Q(przedmiot__skrot__icontains=search_query)
+        )
+
+    if nauczyciel_id:
+        wymagania_lista = wymagania_lista.filter(nauczyciel_id=nauczyciel_id)
+
+    if klasa_id:
+        wymagania_lista = wymagania_lista.filter(klasa_id=klasa_id)
+
+    # 2. Sortowanie
+    sort_mapping = {
+        'nauczyciel': 'nauczyciel__imie_nazwisko',
+        '-nauczyciel': '-nauczyciel__imie_nazwisko',
+        'klasa': 'klasa__id',
+        '-klasa': '-klasa__id',
+        'przedmiot': 'przedmiot__nazwa_przedmiotu',
+        '-przedmiot': '-przedmiot__nazwa_przedmiotu',
+        'godziny': 'liczba_godzin',
+        '-godziny': '-liczba_godzin'
+    }
+
+    sort_field = sort_mapping.get(sort_by, 'id')
+    wymagania_lista = wymagania_lista.order_by(sort_field)
+
+    # Dane do dropdownów
+    nauczyciele = Nauczyciel.objects.all().order_by('imie_nazwisko')
+    klasy = Klasa.objects.all().order_by('id')
+
+    return render(request, 'wymagania.html', {
+        'wymagania': wymagania_lista,
+        'nauczyciele': nauczyciele,
+        'klasy': klasy,
+        'search_query': search_query,
+        'selected_nauczyciel_id': nauczyciel_id,
+        'selected_klasa_id': klasa_id,
+        'current_sort': sort_by
+    })
 
 @user_passes_test(is_admin)
 def edytuj_wymaganie(request, pk=None):
@@ -185,13 +233,52 @@ def usun_wymaganie(request, pk):
 
 
 # --- ZARZĄDZANIE GRUPAMI (ADMIN) ---
-
 @user_passes_test(is_admin)
 def grupy_lekcyjne(request):
+    search_query = request.GET.get('q', '')
+    nauczyciel_id = request.GET.get('nauczyciel_id', '')
+    sort_by = request.GET.get('sort', 'nazwa_grupy')
+
     grupy = Grupylekcyjne.objects.all().select_related('nauczyciel', 'przedmiot').prefetch_related('klasy')
-    return render(request, 'grupy.html', {'grupy': grupy})
 
+    # 1. Filtrowanie (ZAKTUALIZOWANE)
+    if search_query:
+        grupy = grupy.filter(
+            Q(nazwa_grupy__icontains=search_query) |  # Po nazwie grupy
+            Q(przedmiot__nazwa_przedmiotu__icontains=search_query) |  # Po nazwie przedmiotu
+            Q(przedmiot__skrot__icontains=search_query) |  # Po skrócie przedmiotu
+            Q(klasy__id__icontains=search_query) |  # Po ID klasy (np. 1A)
+            Q(klasy__nazwa__icontains=search_query)  # Po nazwie klasy
+        ).distinct()  # distinct() usuwa duplikaty, które mogą powstać przy szukaniu w relacji ManyToMany
 
+    if nauczyciel_id:
+        grupy = grupy.filter(nauczyciel_id=nauczyciel_id)
+
+    # 2. Sortowanie
+    sort_mapping = {
+        'nazwa_grupy': 'nazwa_grupy',
+        '-nazwa_grupy': '-nazwa_grupy',
+        'przedmiot': 'przedmiot__nazwa_przedmiotu',
+        '-przedmiot': '-przedmiot__nazwa_przedmiotu',
+        'nauczyciel': 'nauczyciel__imie_nazwisko',
+        '-nauczyciel': '-nauczyciel__imie_nazwisko',
+        'godziny': 'liczba_godzin_w_grupie',
+        '-godziny': '-liczba_godzin_w_grupie'
+    }
+
+    sort_field = sort_mapping.get(sort_by, 'nazwa_grupy')
+    grupy = grupy.order_by(sort_field)
+
+    # Dane do dropdowna
+    nauczyciele = Nauczyciel.objects.all().order_by('imie_nazwisko')
+
+    return render(request, 'grupy.html', {
+        'grupy': grupy,
+        'nauczyciele': nauczyciele,
+        'search_query': search_query,
+        'selected_nauczyciel_id': nauczyciel_id,
+        'current_sort': sort_by
+    })
 @user_passes_test(is_admin)
 def edytuj_grupe(request, pk=None):
     if pk:
@@ -313,11 +400,31 @@ def toggle_ograniczenie(request):
 # --- CRUD SŁOWNIKI (NAUCZYCIELE, PRZEDMIOTY, KLASY) - ADMIN ---
 
 # --- Nauczyciele ---
+# --- SŁOWNIKI: NAUCZYCIELE ---
 @user_passes_test(is_admin)
 def lista_nauczycieli(request):
-    nauczyciele = Nauczyciel.objects.all().order_by('imie_nazwisko')
-    return render(request, 'slowniki/nauczyciele_lista.html', {'nauczyciele': nauczyciele})
+    search_query = request.GET.get('q', '')
+    sort_by = request.GET.get('sort', 'imie_nazwisko')  # Domyślne sortowanie
 
+    # Pobieramy wszystkich
+    nauczyciele = Nauczyciel.objects.all()
+
+    # Filtracja (Search)
+    if search_query:
+        nauczyciele = nauczyciele.filter(imie_nazwisko__icontains=search_query)
+
+    # Sortowanie (Zabezpieczenie przed błędnymi nazwami pól)
+    valid_sorts = ['imie_nazwisko', '-imie_nazwisko', 'id', '-id']
+    if sort_by not in valid_sorts:
+        sort_by = 'imie_nazwisko'
+
+    nauczyciele = nauczyciele.order_by(sort_by)
+
+    return render(request, 'slowniki/nauczyciele_lista.html', {
+        'nauczyciele': nauczyciele,
+        'search_query': search_query,
+        'current_sort': sort_by
+    })
 
 @user_passes_test(is_admin)
 def edytuj_nauczyciela(request, pk=None):
@@ -350,11 +457,31 @@ def usun_nauczyciela(request, pk):
 
 
 # --- Przedmioty ---
+# --- SŁOWNIKI: PRZEDMIOTY ---
 @user_passes_test(is_admin)
 def lista_przedmiotow(request):
-    przedmioty = Przedmioty.objects.all().order_by('nazwa_przedmiotu')
-    return render(request, 'slowniki/przedmioty_lista.html', {'przedmioty': przedmioty})
+    search_query = request.GET.get('q', '')
+    sort_by = request.GET.get('sort', 'nazwa_przedmiotu')
 
+    przedmioty = Przedmioty.objects.all()
+
+    if search_query:
+        przedmioty = przedmioty.filter(
+            Q(nazwa_przedmiotu__icontains=search_query) |
+            Q(skrot__icontains=search_query)
+        )
+
+    valid_sorts = ['nazwa_przedmiotu', '-nazwa_przedmiotu', 'skrot', '-skrot']
+    if sort_by not in valid_sorts:
+        sort_by = 'nazwa_przedmiotu'
+
+    przedmioty = przedmioty.order_by(sort_by)
+
+    return render(request, 'slowniki/przedmioty_lista.html', {
+        'przedmioty': przedmioty,
+        'search_query': search_query,
+        'current_sort': sort_by
+    })
 
 @user_passes_test(is_admin)
 def edytuj_przedmiot(request, pk=None):
@@ -387,11 +514,31 @@ def usun_przedmiot(request, pk):
 
 
 # --- Klasy ---
+# --- SŁOWNIKI: KLASY ---
 @user_passes_test(is_admin)
 def lista_klas(request):
-    klasy = Klasa.objects.all().order_by('id')
-    return render(request, 'slowniki/klasy_lista.html', {'klasy': klasy})
+    search_query = request.GET.get('q', '')
+    sort_by = request.GET.get('sort', 'id')
 
+    klasy = Klasa.objects.all()
+
+    if search_query:
+        klasy = klasy.filter(
+            Q(id__icontains=search_query) |
+            Q(nazwa__icontains=search_query)
+        )
+
+    valid_sorts = ['id', '-id', 'nazwa', '-nazwa', 'rok', '-rok', 'ilosc_osob', '-ilosc_osob']
+    if sort_by not in valid_sorts:
+        sort_by = 'id'
+
+    klasy = klasy.order_by(sort_by)
+
+    return render(request, 'slowniki/klasy_lista.html', {
+        'klasy': klasy,
+        'search_query': search_query,
+        'current_sort': sort_by
+    })
 
 @user_passes_test(is_admin)
 def edytuj_klase(request, pk=None):
@@ -466,6 +613,23 @@ def edytuj_pojedyncza_lekcje(request, pk):
 # W pliku Plan_lekcji/views.py (dodaj na końcu)
 
 # W pliku Plan_lekcji/views.py
+# W pliku Plan_lekcji/views.py
+
+def sprawdz_czy_sa_okienka(zajete_godziny):
+    """
+    Pomocnicza funkcja. Zwraca True, jeśli w liście godzin są luki.
+    Np. [1, 2, 4] -> True (brak 3)
+    Np. [1, 2, 3] -> False
+    """
+    if not zajete_godziny:
+        return False
+    sorted_h = sorted(list(zajete_godziny))
+    start = sorted_h[0]
+    end = sorted_h[-1]
+    # Jeśli różnica między pierwszą a ostatnią godziną + 1 jest większa niż liczba lekcji,
+    # to znaczy, że są dziury w środku.
+    return (end - start + 1) != len(sorted_h)
+
 
 @user_passes_test(is_admin)
 @require_POST
@@ -474,7 +638,7 @@ def api_zamien_lekcje(request):
     lekcja_id = data.get('lekcja_id')
     target_dzien = data.get('target_dzien')
     target_godzina = int(data.get('target_godzina'))
-    force = data.get('force', False)  # Flaga wymuszenia zmiany
+    force = data.get('force', False)
 
     # 1. Pobierz lekcję źródłową
     lekcja_source = get_object_or_404(PlanLekcji, pk=lekcja_id)
@@ -482,48 +646,46 @@ def api_zamien_lekcje(request):
     old_godzina = lekcja_source.godzina_lekcyjna
 
     nauczyciel = lekcja_source.nauczyciel
-    klasa = lekcja_source.klasa
-    # Jeśli lekcja jest dla grupy, pobieramy klasę z relacji (zakładając uproszczenie)
-    if not klasa and lekcja_source.grupa:
-        # Pobieramy pierwszą klasę z grupy do walidacji (można rozbudować o wszystkie)
-        klasa = lekcja_source.grupa.klasy.first()
 
-    # 2. Identyfikacja lekcji docelowej (do zamiany)
+    # Rozpoznanie klas(y)
+    klasy_do_sprawdzenia = []
+    if lekcja_source.klasa:
+        klasy_do_sprawdzenia.append(lekcja_source.klasa)
+    elif lekcja_source.grupa:
+        # POBIERAMY WSZYSTKIE KLASY Z GRUPY
+        klasy_do_sprawdzenia.extend(lekcja_source.grupa.klasy.all())
+
+    # 2. Identyfikacja lekcji docelowej
     typ_widoku = data.get('typ_widoku')
     obiekt_id = data.get('obiekt_id')
 
     lekcja_target = None
+    # Logika szukania celu pozostaje bez zmian (uproszczona dla czytelności przykładu)
     if typ_widoku == 'klasa':
         lekcja_target = PlanLekcji.objects.filter(
-            klasa_id=obiekt_id,
-            dzien_tygodnia=target_dzien,
-            godzina_lekcyjna=target_godzina
+            klasa_id=obiekt_id, dzien_tygodnia=target_dzien, godzina_lekcyjna=target_godzina
         ).first()
         if not lekcja_target:
             grupy_ids = Klasywgrupach.objects.filter(klasa_id=obiekt_id).values_list('grupa_id', flat=True)
             lekcja_target = PlanLekcji.objects.filter(
-                grupa_id__in=grupy_ids,
-                dzien_tygodnia=target_dzien,
-                godzina_lekcyjna=target_godzina
+                grupa_id__in=grupy_ids, dzien_tygodnia=target_dzien, godzina_lekcyjna=target_godzina
             ).first()
     elif typ_widoku == 'nauczyciel':
         lekcja_target = PlanLekcji.objects.filter(
-            nauczyciel_id=obiekt_id,
-            dzien_tygodnia=target_dzien,
-            godzina_lekcyjna=target_godzina
+            nauczyciel_id=obiekt_id, dzien_tygodnia=target_dzien, godzina_lekcyjna=target_godzina
         ).first()
 
     # ---------------------------------------------------------
-    # WALIDACJA (tylko jeśli nie wymuszamy zmian 'force')
+    # WALIDACJA
     # ---------------------------------------------------------
     if not force:
         bledy = []
-
-        # A. Sprawdź czy NAUCZYCIEL ma czas (pomijamy lekcję, którą właśnie przesuwamy i target który zamieniamy)
         ignored_ids = [lekcja_source.id]
         if lekcja_target: ignored_ids.append(lekcja_target.id)
 
+        # --- A. NAUCZYCIEL (Konflikty + Ograniczenia + Okienka) ---
         if nauczyciel:
+            # 1. Konflikt terminów
             kolizja_nauczyciel = PlanLekcji.objects.filter(
                 nauczyciel=nauczyciel,
                 dzien_tygodnia=target_dzien,
@@ -533,22 +695,33 @@ def api_zamien_lekcje(request):
             if kolizja_nauczyciel:
                 bledy.append(f"Nauczyciel {nauczyciel} ma już inną lekcję w tym czasie.")
 
-            # Ograniczenia nauczyciela (Constraint)
+            # 2. Ograniczenia (dostępność)
             ograniczenie = Ograniczenia.objects.filter(
-                nauczyciel=nauczyciel,
-                dzien_tygodnia=target_dzien,
-                od__lte=target_godzina,
-                do__gte=target_godzina
+                nauczyciel=nauczyciel, dzien_tygodnia=target_dzien,
+                od__lte=target_godzina, do__gte=target_godzina
             ).exists()
             if ograniczenie:
-                bledy.append(f"Nauczyciel {nauczyciel} ma blokadę (ograniczenie) w tym terminie.")
+                bledy.append(f"Nauczyciel {nauczyciel} ma blokadę w tym terminie.")
 
-        # B. Sprawdź czy KLASA ma czas
-        if klasa:
-            # Sprawdzamy czy klasa ma lekcję (bezpośrednio lub przez grupę)
-            # Upraszczamy: sprawdzamy czy w planie dla tej klasy coś jest
+            # 3. Wykrywanie OKIENEK (Jeśli przenosimy lekcję na ten sam dzień)
+            # Analizujemy plan nauczyciela w dniu docelowym
+            if target_dzien == old_dzien:  # Uproszczenie: sprawdzamy okienka przy zmianach w obrębie dnia
+                # Pobierz godziny z bazy (bez ruszanej lekcji)
+                godziny_nauczyciela = list(PlanLekcji.objects.filter(
+                    nauczyciel=nauczyciel, dzien_tygodnia=target_dzien
+                ).exclude(id__in=ignored_ids).values_list('godzina_lekcyjna', flat=True))
+
+                # Symulacja: dodajemy nową godzinę
+                godziny_nauczyciela.append(target_godzina)
+
+                if sprawdz_czy_sa_okienka(godziny_nauczyciela):
+                    bledy.append(f"Uwaga: Ten ruch stworzy 'okienko' w planie nauczyciela {nauczyciel}.")
+
+        # --- B. KLASY (Pętla po wszystkich klasach - obsługa grup) ---
+        for klasa in klasy_do_sprawdzenia:
             grupy_tej_klasy = Klasywgrupach.objects.filter(klasa=klasa).values_list('grupa_id', flat=True)
 
+            # 1. Konflikt terminów
             kolizja_klasa = PlanLekcji.objects.filter(
                 Q(klasa=klasa) | Q(grupa_id__in=grupy_tej_klasy),
                 dzien_tygodnia=target_dzien,
@@ -556,27 +729,46 @@ def api_zamien_lekcje(request):
             ).exclude(id__in=ignored_ids).exists()
 
             if kolizja_klasa:
-                bledy.append(f"Klasa {klasa} ma już zajęcia w tym czasie.")
+                bledy.append(f"Klasa {klasa.nazwa} (lub jej grupa) ma już zajęcia w tym czasie.")
 
-            # Ograniczenia klasy
+            # 2. Ograniczenia klasy
             ograniczenie_klasy = OgraniczeniaKlas.objects.filter(
-                klasa=klasa,
-                dzien_tygodnia=target_dzien,
-                od__lte=target_godzina,
-                do__gte=target_godzina
+                klasa=klasa, dzien_tygodnia=target_dzien,
+                od__lte=target_godzina, do__gte=target_godzina
             ).exists()
             if ograniczenie_klasy:
-                bledy.append(f"Klasa {klasa} ma blokadę (ograniczenie) w tym terminie.")
+                bledy.append(f"Klasa {klasa.nazwa} ma blokadę w tym terminie.")
 
-        # Jeśli są błędy, zwróć status 'confirm'
+            # 3. Wykrywanie OKIENEK dla klasy
+            if target_dzien == old_dzien:
+                # Pobieramy zajęcia klasy (i jej grup) w tym dniu
+                godziny_klasy = list(PlanLekcji.objects.filter(
+                    Q(klasa=klasa) | Q(grupa_id__in=grupy_tej_klasy),
+                    dzien_tygodnia=target_dzien
+                ).exclude(id__in=ignored_ids).values_list('godzina_lekcyjna', flat=True))
+
+                godziny_klasy.append(target_godzina)
+
+                if sprawdz_czy_sa_okienka(godziny_klasy):
+                    bledy.append(f"Uwaga: Ten ruch stworzy 'okienko' dla klasy {klasa.nazwa}.")
+
+        # --- C. SALE ---
+        sala_source = lekcja_source.sala
+        if sala_source:
+            kolizja_sala = PlanLekcji.objects.filter(
+                sala=sala_source, dzien_tygodnia=target_dzien, godzina_lekcyjna=target_godzina
+            ).exclude(id__in=ignored_ids).exists()
+            if kolizja_sala:
+                bledy.append(f"Sala {sala_source} jest zajęta w docelowym terminie.")
+
+        # ZWRACANIE BŁĘDÓW
         if bledy:
-            komunikat = "Wykryto następujące konflikty:\n- " + "\n- ".join(bledy)
+            komunikat = "Informacje i Ostrzeżenia:\n- " + "\n- ".join(list(set(bledy)))  # set() usuwa duplikaty
             return JsonResponse({'status': 'confirm', 'message': komunikat})
 
     # ---------------------------------------------------------
-    # WYKONANIE ZMIAN (jeśli brak błędów lub force=True)
+    # WYKONANIE ZMIAN
     # ---------------------------------------------------------
-
     if lekcja_target:
         # SWAP
         lekcja_target.dzien_tygodnia = old_dzien
