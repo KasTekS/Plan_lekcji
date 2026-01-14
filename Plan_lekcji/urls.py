@@ -13,7 +13,7 @@ from .views import (
     # Przedmioty CRUD
     lista_przedmiotow, edytuj_przedmiot, usun_przedmiot,
     # Klasy CRUD
-    lista_klas, edytuj_klase, usun_klase, edytuj_pojedyncza_lekcje
+    lista_klas, edytuj_klase, usun_klase, edytuj_pojedyncza_lekcje, api_zamien_lekcje
 )
 
 urlpatterns = [
@@ -59,4 +59,6 @@ urlpatterns = [
     path('klasy/edytuj/<str:pk>/', edytuj_klase, name='edytuj_klase'),
     path('klasy/usun/<str:pk>/', usun_klase, name='usun_klase'),
     path('plan/edytuj/<int:pk>/', edytuj_pojedyncza_lekcje, name='edytuj_pojedyncza_lekcje'),
+
+    path('api/zamien-lekcje/', api_zamien_lekcje, name='api_zamien_lekcje'),
 ]

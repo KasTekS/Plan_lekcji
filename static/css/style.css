@@ -194,6 +194,8 @@ table.plan-table tbody td.col-number-cell {
     font-size: 1.2rem;
 }
 
+/* W pliku Plan_lekcji/static/css/style.css */
+
 .lesson-content {
     background-color: #ffffff;
     padding: 6px 8px;
@@ -205,7 +207,12 @@ table.plan-table tbody td.col-number-cell {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    text-align: left;
+
+    /* --- ZMIANA TUTAJ --- */
+    text-align: center;      /* Było: left */
+    align-items: center;     /* Dodano, aby elementy wewnątrz były na środku */
+    /* -------------------- */
+
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     transition: all 0.2s ease;
     overflow: hidden;
@@ -231,11 +238,15 @@ table.plan-table tbody td.col-number-cell {
 }
 
 .lesson-room {
-    font-size: 0.75rem;
+    /* --- ZMIANA TUTAJ --- */
+    font-size: 1.2rem;       /* Było: 0.75rem (Zwiększono rozmiar) */
+    text-align: center;      /* Było: right (Teraz na środku) */
+    /* -------------------- */
+
     color: #64748b;
     font-weight: 600;
-    text-align: right;
     margin-top: auto;
+    width: 100%;             /* Dodano, aby tekst na pewno był na środku szerokości */
 }
 
 .lesson-room i {
@@ -257,8 +268,12 @@ table.plan-table tbody td.col-number-cell {
     top: 2px;
     right: 4px;
     color: var(--awans-navy);
-    font-size: 0.7rem;
-    opacity: 0.6;
+
+    /* --- ZMIANA TUTAJ --- */
+    font-size: 1.4rem;       /* Było: 0.7rem (Zwiększono dwukrotnie) */
+    /* -------------------- */
+
+    opacity: 0.8;            /* Można też nieco zwiększyć widoczność (opcjonalnie) */
 }
 .lesson-content:hover .edit-hint { display: block; }
 

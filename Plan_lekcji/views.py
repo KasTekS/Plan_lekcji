@@ -461,3 +461,137 @@ def edytuj_pojedyncza_lekcje(request, pk):
         'tytul': f'Edycja lekcji: {lekcja.dzien_tygodnia} godz. {lekcja.godzina_lekcyjna}',
         'return_url': referer  # Przekazujemy referer do template'u
     })
+
+
+# W pliku Plan_lekcji/views.py (dodaj na końcu)
+
+# W pliku Plan_lekcji/views.py
+
+@user_passes_test(is_admin)
+@require_POST
+def api_zamien_lekcje(request):
+    data = json.loads(request.body)
+    lekcja_id = data.get('lekcja_id')
+    target_dzien = data.get('target_dzien')
+    target_godzina = int(data.get('target_godzina'))
+    force = data.get('force', False)  # Flaga wymuszenia zmiany
+
+    # 1. Pobierz lekcję źródłową
+    lekcja_source = get_object_or_404(PlanLekcji, pk=lekcja_id)
+    old_dzien = lekcja_source.dzien_tygodnia
+    old_godzina = lekcja_source.godzina_lekcyjna
+
+    nauczyciel = lekcja_source.nauczyciel
+    klasa = lekcja_source.klasa
+    # Jeśli lekcja jest dla grupy, pobieramy klasę z relacji (zakładając uproszczenie)
+    if not klasa and lekcja_source.grupa:
+        # Pobieramy pierwszą klasę z grupy do walidacji (można rozbudować o wszystkie)
+        klasa = lekcja_source.grupa.klasy.first()
+
+    # 2. Identyfikacja lekcji docelowej (do zamiany)
+    typ_widoku = data.get('typ_widoku')
+    obiekt_id = data.get('obiekt_id')
+
+    lekcja_target = None
+    if typ_widoku == 'klasa':
+        lekcja_target = PlanLekcji.objects.filter(
+            klasa_id=obiekt_id,
+            dzien_tygodnia=target_dzien,
+            godzina_lekcyjna=target_godzina
+        ).first()
+        if not lekcja_target:
+            grupy_ids = Klasywgrupach.objects.filter(klasa_id=obiekt_id).values_list('grupa_id', flat=True)
+            lekcja_target = PlanLekcji.objects.filter(
+                grupa_id__in=grupy_ids,
+                dzien_tygodnia=target_dzien,
+                godzina_lekcyjna=target_godzina
+            ).first()
+    elif typ_widoku == 'nauczyciel':
+        lekcja_target = PlanLekcji.objects.filter(
+            nauczyciel_id=obiekt_id,
+            dzien_tygodnia=target_dzien,
+            godzina_lekcyjna=target_godzina
+        ).first()
+
+    # ---------------------------------------------------------
+    # WALIDACJA (tylko jeśli nie wymuszamy zmian 'force')
+    # ---------------------------------------------------------
+    if not force:
+        bledy = []
+
+        # A. Sprawdź czy NAUCZYCIEL ma czas (pomijamy lekcję, którą właśnie przesuwamy i target który zamieniamy)
+        ignored_ids = [lekcja_source.id]
+        if lekcja_target: ignored_ids.append(lekcja_target.id)
+
+        if nauczyciel:
+            kolizja_nauczyciel = PlanLekcji.objects.filter(
+                nauczyciel=nauczyciel,
+                dzien_tygodnia=target_dzien,
+                godzina_lekcyjna=target_godzina
+            ).exclude(id__in=ignored_ids).exists()
+
+            if kolizja_nauczyciel:
+                bledy.append(f"Nauczyciel {nauczyciel} ma już inną lekcję w tym czasie.")
+
+            # Ograniczenia nauczyciela (Constraint)
+            ograniczenie = Ograniczenia.objects.filter(
+                nauczyciel=nauczyciel,
+                dzien_tygodnia=target_dzien,
+                od__lte=target_godzina,
+                do__gte=target_godzina
+            ).exists()
+            if ograniczenie:
+                bledy.append(f"Nauczyciel {nauczyciel} ma blokadę (ograniczenie) w tym terminie.")
+
+        # B. Sprawdź czy KLASA ma czas
+        if klasa:
+            # Sprawdzamy czy klasa ma lekcję (bezpośrednio lub przez grupę)
+            # Upraszczamy: sprawdzamy czy w planie dla tej klasy coś jest
+            grupy_tej_klasy = Klasywgrupach.objects.filter(klasa=klasa).values_list('grupa_id', flat=True)
+
+            kolizja_klasa = PlanLekcji.objects.filter(
+                Q(klasa=klasa) | Q(grupa_id__in=grupy_tej_klasy),
+                dzien_tygodnia=target_dzien,
+                godzina_lekcyjna=target_godzina
+            ).exclude(id__in=ignored_ids).exists()
+
+            if kolizja_klasa:
+                bledy.append(f"Klasa {klasa} ma już zajęcia w tym czasie.")
+
+            # Ograniczenia klasy
+            ograniczenie_klasy = OgraniczeniaKlas.objects.filter(
+                klasa=klasa,
+                dzien_tygodnia=target_dzien,
+                od__lte=target_godzina,
+                do__gte=target_godzina
+            ).exists()
+            if ograniczenie_klasy:
+                bledy.append(f"Klasa {klasa} ma blokadę (ograniczenie) w tym terminie.")
+
+        # Jeśli są błędy, zwróć status 'confirm'
+        if bledy:
+            komunikat = "Wykryto następujące konflikty:\n- " + "\n- ".join(bledy)
+            return JsonResponse({'status': 'confirm', 'message': komunikat})
+
+    # ---------------------------------------------------------
+    # WYKONANIE ZMIAN (jeśli brak błędów lub force=True)
+    # ---------------------------------------------------------
+
+    if lekcja_target:
+        # SWAP
+        lekcja_target.dzien_tygodnia = old_dzien
+        lekcja_target.godzina_lekcyjna = old_godzina
+        lekcja_target.save()
+
+        lekcja_source.dzien_tygodnia = target_dzien
+        lekcja_source.godzina_lekcyjna = target_godzina
+        lekcja_source.save()
+        msg = 'Zamieniono lekcje miejscami (SWAP).'
+    else:
+        # MOVE
+        lekcja_source.dzien_tygodnia = target_dzien
+        lekcja_source.godzina_lekcyjna = target_godzina
+        lekcja_source.save()
+        msg = 'Przesunięto lekcję.'
+
+    return JsonResponse({'status': 'ok', 'message': msg})
