@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Sugerowane Grupy - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Sugerowane Grupy Międzyoddziałowe</h1>
+    <a href="{% url 'grupy' %}" class="btn btn-primary">
+        <i class="fas fa-arrow-left"></i> Wróć do listy grup
+    </a>
+</div>
+
+<div class="card" style="margin-bottom: 2rem; background: #fff7ed; border-left: 5px solid #f97316;">
+    <p style="margin: 0; color: #9a3412;">
+        <i class="fas fa-lightbulb"></i> 
+        Poniżej znajdują się propozycje grup wygenerowane na podstawie wymagań. 
+        System połączył klasy z tego samego rocznika, które mają ten sam przedmiot, nauczyciela i liczbę godzin, 
+        a ich łączna liczebność nie przekracza <strong>51 osób</strong>.
+    </p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Przedmiot</th>
+                <th>Nauczyciel</th>
+                <th>Proponowane klasy</th>
+                <th style="text-align: center;">Rocznik</th>
+                <th style="text-align: center;">Łącznie osób</th>
+                <th style="text-align: center;">Godziny</th>
+                <th style="text-align: right;">Akcja</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sugestia in sugestie %}
+            <tr>
+                <td style="font-weight: bold;">{{ sugestia.przedmiot.nazwa_przedmiotu }}</td>
+                <td>{{ sugestia.nauczyciel.imie_nazwisko|default:"- Wakat -" }}</td>
+                <td>
+                    {% for k in sugestia.klasy %}
+                        <span class="badge-class">{{ k.nazwa }} ({{ k.ilosc_osob }})</span>
+                    {% endfor %}
+                </td>
+                <td style="text-align: center;">{{ sugestia.rok }}</td>
+                <td style="text-align: center;">
+                    <span style="font-weight: bold; {% if sugestia.suma_osob > 30 %}color: #d97706;{% else %}color: #166534;{% endif %}">
+                        {{ sugestia.suma_osob }}
+                    </span>
+                </td>
+                <td style="text-align: center;">
+                    <span class="badge-hours">{{ sugestia.godziny }}</span>
+                </td>
+                <td style="text-align: right;">
+                    <form action="{% url 'akceptuj_sugestie' %}" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="przedmiot_id" value="{{ sugestia.przedmiot.id }}">
+                        <input type="hidden" name="nauczyciel_id" value="{{ sugestia.nauczyciel.id }}">
+                        <input type="hidden" name="godziny" value="{{ sugestia.godziny }}">
+                        <input type="hidden" name="ids_klas" value="{{ sugestia.ids_klas_hidden }}">
+                        
+                        <button type="submit" class="btn btn-gold" style="padding: 5px 10px; font-size: 0.9em;">
+                            <i class="fas fa-check"></i> Utwórz
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 3rem; color: #94a3b8;">
+                    <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
+                    Brak nowych sugestii. Wszystkie wymagania są już pojedyncze lub zostały zgrupowane.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -148,6 +148,14 @@ class GrupaForm(StyledModelForm):
         required=False
     )
 
+    # NOWE POLE - służy jako "znacznik/potwierdzenie"
+    autokorekta_wymagan = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Aktualizuj wymagania przedmiotowe",
+        help_text="Zaznacz, aby system automatycznie odjął godziny z wymagań tych klas (przy dodawaniu) lub skorygował je (przy edycji). Działa tylko dla tego samego przedmiotu."
+    )
+
     ignoruj_limity = forms.BooleanField(
         required=False,
         label="Ignoruj ostrzeżenia o limitach",
@@ -166,8 +174,16 @@ class GrupaForm(StyledModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Zapamiętujemy stan początkowy do obsługi EDYCJI
+        self.old_klasy = []
+        self.old_godziny = 0
+
         if self.instance.pk:
             self.fields['klasy_wybor'].initial = self.instance.klasy.all()
+            # Kopia listy klas i liczby godzin przed zmianami
+            self.old_klasy = list(self.instance.klasy.all())
+            self.old_godziny = self.instance.liczba_godzin_w_grupie or 0
 
     def clean(self):
         cleaned_data = super().clean()
@@ -188,16 +204,44 @@ class GrupaForm(StyledModelForm):
         return cleaned_data
 
     def save(self, commit=True):
+        # 1. Zapisujemy grupę (żeby mieć ID i podstawowe dane)
         grupa = super().save(commit=False)
+
         if commit:
             grupa.save()
-            wybrane_klasy = self.cleaned_data['klasy_wybor']
+
+            # Pobieramy nowe dane z formularza
+            nowe_klasy = self.cleaned_data['klasy_wybor']
+            nowe_godziny = self.cleaned_data['liczba_godzin_w_grupie']
+            robic_korekte = self.cleaned_data.get('autokorekta_wymagan')
+            przedmiot = grupa.przedmiot
+
+            # Aktualizacja relacji M2M (Klasy w grupach)
             Klasywgrupach.objects.filter(grupa=grupa).delete()
-            for klasa_obj in wybrane_klasy:
+            for klasa_obj in nowe_klasy:
                 Klasywgrupach.objects.create(grupa=grupa, klasa=klasa_obj)
+
+            # --- LOGIKA AKTUALIZACJI WYMAGAŃ ---
+            if robic_korekte and przedmiot:
+                # A. PRZYWRACANIE (Dla edycji): Oddajemy godziny starym klasom
+                # (np. jeśli usuwamy klasę z grupy lub zmieniamy liczbę godzin, najpierw "zerujemy" wpływ)
+                if self.instance.pk and self.old_klasy:
+                    for k in self.old_klasy:
+                        wymagania = WymaganiaPrzedmiotowe.objects.filter(klasa=k, przedmiot=przedmiot)
+                        for wym in wymagania:
+                            wym.liczba_godzin = (wym.liczba_godzin or 0) + self.old_godziny
+                            wym.save()
+
+                # B. ODEJMOWANIE (Dla nowych danych): Zabieramy godziny nowym klasom
+                for k in nowe_klasy:
+                    wymagania = WymaganiaPrzedmiotowe.objects.filter(klasa=k, przedmiot=przedmiot)
+                    for wym in wymagania:
+                        # Zabezpieczenie przed ujemnymi godzinami (opcjonalne)
+                        nowy_stan = (wym.liczba_godzin or 0) - nowe_godziny
+                        wym.liczba_godzin = max(0, nowy_stan)
+                        wym.save()
+
         return grupa
-
-
 # ... (EdycjaLekcjiForm - BEZ ZMIAN) ...
 class EdycjaLekcjiForm(StyledModelForm):
     class Meta:

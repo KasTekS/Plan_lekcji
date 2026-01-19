@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Usuwanie Grupy - Panel AWANS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Usuwanie Grupy</h1>
+    <a href="{% url 'grupy' %}" class="btn btn-primary" style="background-color: #64748b;">
+        <i class="fas fa-arrow-left"></i> Anuluj
+    </a>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto; border-top: 4px solid #dc2626;">
+    <h3 style="color: var(--awans-navy); margin-bottom: 1rem;">
+        Czy na pewno chcesz usunąć grupę?
+    </h3>
+
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <p><strong>Nazwa grupy:</strong> {{ grupa.nazwa_grupy }}</p>
+        <p><strong>Przedmiot:</strong> {{ grupa.przedmiot.nazwa_przedmiotu }}</p>
+        <p><strong>Nauczyciel:</strong> {{ grupa.nauczyciel.imie_nazwisko }}</p>
+        <p><strong>Liczba godzin:</strong> {{ grupa.liczba_godzin_w_grupie }}</p>
+        <p><strong>Przypisane klasy:</strong>
+            {% for klasa in grupa.klasy.all %}
+                <span class="badge-class">{{ klasa.id }}</span>
+            {% endfor %}
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group" style="margin-bottom: 2rem;">
+            <div style="display: flex; align-items: flex-start; gap: 10px; background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #fdba74;">
+                <input type="checkbox" name="przywroc_godziny" id="id_przywroc" checked style="margin-top: 5px; transform: scale(1.2);">
+                <div>
+                    <label for="id_przywroc" style="font-weight: bold; color: #9a3412; cursor: pointer;">
+                        Przywróć godziny do wymagań przedmiotowych
+                    </label>
+                    <p style="font-size: 0.9em; color: #c2410c; margin-top: 5px; line-height: 1.4;">
+                        Jeśli zaznaczysz tę opcję, system <strong>doda {{ grupa.liczba_godzin_w_grupie }} godz.</strong>
+                        do puli wymagań dla klas:
+                        {% for klasa in grupa.klasy.all %} {{ klasa.id }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                        <br>
+                        <em>Odznacz to, jeśli grupa była utworzona przez pomyłkę.</em>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: right; display: flex; justify-content: flex-end; gap: 10px;">
+            <a href="{% url 'grupy' %}" class="btn btn-primary" style="background-color: #94a3b8;">
+                Anuluj
+            </a>
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash-alt"></i> Potwierdź usunięcie
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

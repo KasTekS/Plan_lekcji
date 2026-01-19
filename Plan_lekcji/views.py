@@ -6,7 +6,8 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q
 from collections import defaultdict
 import json
-
+from django.db import transaction
+from collections import defaultdict
 from .forms import (
     NauczycielForm, KlasaForm, PrzedmiotForm,
     WymaganieForm, GrupaForm, EdycjaLekcjiForm
@@ -300,14 +301,49 @@ def edytuj_grupe(request, pk=None):
     return render(request, 'slowniki/formularz_bazowy.html', {'form': form, 'tytul': tytul})
 
 
+# Plan_lekcji/views.py
+
+# Plan_lekcji/views.py
+
 @user_passes_test(is_admin)
 def usun_grupe(request, pk):
-    obj = get_object_or_404(Grupylekcyjne, pk=pk)
-    if request.method == 'POST':
-        obj.delete()
-        messages.success(request, 'Usunięto grupę.')
-    return redirect('grupy')
+    grupa = get_object_or_404(Grupylekcyjne, pk=pk)
 
+    if request.method == 'POST':
+        # Sprawdzamy, czy użytkownik zaznaczył checkbox w formularzu
+        przywroc = request.POST.get('przywroc_godziny') == 'on'
+
+        # Zbieramy dane do komunikatu
+        nazwa = grupa.nazwa_grupy
+        klasy_w_grupie = list(grupa.klasy.all())
+        godziny = grupa.liczba_godzin_w_grupie
+        przedmiot = grupa.przedmiot
+
+        # Usuwamy grupę
+        grupa.delete()
+
+        msg = f'Usunięto grupę "{nazwa}".'
+
+        # Logika przywracania godzin (tylko jeśli zaznaczono checkbox)
+        if przywroc and przedmiot and godziny > 0:
+            zaktualizowano_liczbnik = 0
+            for k in klasy_w_grupie:
+                wymagania = WymaganiaPrzedmiotowe.objects.filter(klasa=k, przedmiot=przedmiot)
+                for wym in wymagania:
+                    wym.liczba_godzin = (wym.liczba_godzin or 0) + godziny
+                    wym.save()
+                    zaktualizowano_liczbnik += 1
+
+            if zaktualizowano_liczbnik > 0:
+                msg += f' Przywrócono godziny w {zaktualizowano_liczbnik} wymaganiach.'
+        else:
+            msg += ' Wymagania przedmiotowe pozostały bez zmian.'
+
+        messages.success(request, msg)
+        return redirect('grupy')
+
+    # Metoda GET: Wyświetlamy stronę potwierdzenia
+    return render(request, 'grupy_usun.html', {'grupa': grupa})
 
 # --- ZARZĄDZANIE OGRANICZENIAMI (ADMIN) ---
 
@@ -787,3 +823,120 @@ def api_zamien_lekcje(request):
         msg = 'Przesunięto lekcję.'
 
     return JsonResponse({'status': 'ok', 'message': msg})
+
+
+# --- AUTOMATYCZNE SUGEROWANIE GRUP ---
+
+@user_passes_test(is_admin)
+def sugeruj_grupy(request):
+    # Pobieramy wszystkie wymagania, które mają > 0 godzin
+    wymagania = WymaganiaPrzedmiotowe.objects.filter(liczba_godzin__gt=0).select_related('klasa', 'nauczyciel',
+                                                                                         'przedmiot')
+
+    # Słownik pomocniczy do grupowania:
+    # Klucz: (Przedmiot ID, Nauczyciel ID, Liczba Godzin, Rocznik Klasy)
+    # Wartość: Lista obiektów wymagań
+    grupy_robocze = defaultdict(list)
+
+    for w in wymagania:
+        # Klucz grupowania:
+        # Ważne: Łączymy tylko klasy z tego samego rocznika (w.klasa.rok)
+        klucz = (
+            w.przedmiot,
+            w.nauczyciel,
+            w.liczba_godzin,
+            w.klasa.rok
+        )
+        grupy_robocze[klucz].append(w)
+
+    sugestie = []
+    MAKS_OSOB = 51  # Limit z Twojego pliku
+
+    for (przedmiot, nauczyciel, godziny, rok), lista_wymagan in grupy_robocze.items():
+        # Sens łączenia jest tylko wtedy, gdy mamy więcej niż 1 klasę
+        if len(lista_wymagan) > 1:
+            # Sprawdzamy sumę uczniów
+            suma_osob = sum(w.klasa.ilosc_osob for w in lista_wymagan)
+
+            if suma_osob <= MAKS_OSOB:
+                # Tworzymy propozycję
+                klasy_w_propozycji = [w.klasa for w in lista_wymagan]
+                nazwy_klas = ", ".join([k.nazwa for k in klasy_w_propozycji])
+                ids_klas = ",".join([str(k.id) for k in klasy_w_propozycji])  # Potrzebne do formularza POST
+
+                sugestie.append({
+                    'przedmiot': przedmiot,
+                    'nauczyciel': nauczyciel,
+                    'godziny': godziny,
+                    'klasy': klasy_w_propozycji,
+                    'nazwy_klas_str': nazwy_klas,
+                    'ids_klas_hidden': ids_klas,  # Ukryte pole dla backendu
+                    'suma_osob': suma_osob,
+                    'rok': rok
+                })
+
+    return render(request, 'slowniki/sugestie_grup.html', {
+        'sugestie': sugestie
+    })
+
+
+@user_passes_test(is_admin)
+def akceptuj_sugestie(request):
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # 1. Pobieramy dane z ukrytego formularza
+                przedmiot_id = request.POST.get('przedmiot_id')
+                nauczyciel_id = request.POST.get('nauczyciel_id')  # Może być puste
+                godziny = int(request.POST.get('godziny'))
+                ids_klas_str = request.POST.get('ids_klas')
+
+                # Konwersja danych
+                przedmiot = get_object_or_404(Przedmioty, id=przedmiot_id)
+                nauczyciel = None
+                if nauczyciel_id and nauczyciel_id != 'None':
+                    nauczyciel = get_object_or_404(Nauczyciel, id=nauczyciel_id)
+
+                ids_klas = ids_klas_str.split(',')
+                klasy_objs = Klasa.objects.filter(id__in=ids_klas)
+
+                # Generujemy nazwę grupy automatycznie
+                nazwy_klas = "-".join([k.nazwa for k in klasy_objs])
+                skrot_przedmiotu = przedmiot.skrot if przedmiot.skrot else przedmiot.nazwa_przedmiotu[:3]
+                nazwa_grupy = f"{skrot_przedmiotu}_{nazwy_klas}"
+
+                # 2. Tworzymy grupę
+                nowa_grupa = Grupylekcyjne.objects.create(
+                    nazwa_grupy=nazwa_grupy,
+                    przedmiot=przedmiot,
+                    nauczyciel=nauczyciel,
+                    liczba_godzin_w_grupie=godziny
+                )
+
+                # Przypisujemy klasy (M2M)
+                nowa_grupa.klasy.set(klasy_objs)
+                nowa_grupa.save()
+
+                # 3. AKTUALIZACJA WYMAGAŃ (To samo co przy ręcznym dodawaniu)
+                log_info = []
+                for klasa in klasy_objs:
+                    wymaganie = WymaganiaPrzedmiotowe.objects.filter(
+                        klasa=klasa, przedmiot=przedmiot, nauczyciel=nauczyciel
+                    ).first()
+
+                    if wymaganie:
+                        stara_ilosc = wymaganie.liczba_godzin
+                        nowa_ilosc = max(0, stara_ilosc - godziny)
+                        if stara_ilosc != nowa_ilosc:
+                            wymaganie.liczba_godzin = nowa_ilosc
+                            wymaganie.save()
+                            log_info.append(f"{klasa.nazwa}")
+
+                messages.success(request, f"Utworzono grupę '{nazwa_grupy}'.")
+                if log_info:
+                    messages.info(request, f"Odjęto godziny z wymagań dla: {', '.join(log_info)}")
+
+        except Exception as e:
+            messages.error(request, f"Błąd tworzenia grupy: {e}")
+
+    return redirect('sugeruj_grupy')
