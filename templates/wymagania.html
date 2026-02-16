@@ -68,18 +68,20 @@
                            {% if 'nauczyciel' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
                         </a>
                     </th>
-                    <th style="width: 20%;">
+                    <th style="width: 15%;">
                         <a href="?sort={% if current_sort == 'klasa' %}-klasa{% else %}klasa{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
                            style="color: white; text-decoration: none;">Klasa
                            {% if 'klasa' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
                         </a>
                     </th>
-                    <th style="width: 35%;">
+                    <th style="width: 25%;">
                         <a href="?sort={% if current_sort == 'przedmiot' %}-przedmiot{% else %}przedmiot{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
                            style="color: white; text-decoration: none;">Przedmiot
                            {% if 'przedmiot' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
                         </a>
                     </th>
+                    <th style="width: 15%; text-align: center;">Rozmieszczenie</th>
+
                     <th style="width: 10%; text-align: center;">
                         <a href="?sort={% if current_sort == 'godziny' %}-godziny{% else %}godziny{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}&klasa_id={{ selected_klasa_id }}"
                            style="color: white; text-decoration: none;">Godziny
@@ -102,6 +104,11 @@
                         </span>
                     </td>
                     <td>{{ wpis.przedmiot.nazwa_przedmiotu }}</td>
+
+                    <td style="text-align: center;">
+                        {{ wpis.get_rozmieszczenie_display|default:"-" }}
+                    </td>
+
                     <td style="text-align: center;">
                         <span class="badge-hours">{{ wpis.liczba_godzin }}</span>
                     </td>
@@ -111,7 +118,9 @@
                         </a>
                         <form action="{% url 'usun_wymaganie' wpis.id %}" method="post" style="display:inline;">
                             {% csrf_token %}
-                            <button type="submit" class="action-btn delete" onclick="return confirm('Czy na pewno usunąć to wymaganie?')" title="Usuń">
+                            <button type="button" class="action-btn delete"
+                                    onclick="confirmDelete(this, 'Czy na pewno usunąć to wymaganie dla: {{ wpis.nauczyciel.imie_nazwisko }}?')"
+                                    title="Usuń">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </form>
@@ -119,7 +128,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 3rem; color: #94a3b8;">
+                    <td colspan="6" style="text-align: center; padding: 3rem; color: #94a3b8;">
                         <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
                         Brak wymagań spełniających kryteria.
                     </td>

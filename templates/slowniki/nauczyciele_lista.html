@@ -50,9 +50,10 @@
                     </a>
                     <form action="{% url 'usun_nauczyciela' n.id %}" method="post" style="display:inline;">
                         {% csrf_token %}
-                        <button type="submit" class="action-btn delete" onclick="return confirm('Czy na pewno usunąć nauczyciela {{ n.imie_nazwisko }}?')" title="Usuń">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <button type="button" class="action-btn delete"
+        onclick="confirmDelete(this, 'Czy na pewno usunąć nauczyciela {{ n.imie_nazwisko }}?')" title="Usuń">
+    <i class="fas fa-trash-alt"></i>
+</button>
                     </form>
                 </td>
             </tr>

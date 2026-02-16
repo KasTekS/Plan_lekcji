@@ -24,8 +24,8 @@ SECRET_KEY = 'django-insecure-j16gy)sxpmuky9c^3sp9x&i^%2r=a&c^t^^fieq8dumuxc#rib
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -77,7 +77,7 @@ WSGI_APPLICATION = 'Plan_lekcji.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'plan_lekcji2', # Twoja nazwa bazy danych (dbname)
+        'NAME': 'paln_lekcji3', # Twoja nazwa bazy danych (dbname)
         'USER': 'postgres', # Twoja nazwa użytkownika
         'PASSWORD': 'homo4cjh', # Twoje hasło
         'HOST': 'localhost', # Adres hosta
@@ -136,3 +136,55 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Dla testów lokalnych (wyświetla emaile w konsoli)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Dla produkcji z Gmail (odkomentuj i wypełnij):
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'awans.pinczow.plan.lekcji@gmail.com'  # Twój email Gmail
+EMAIL_HOST_PASSWORD = 'mudj rmvw bbwy aazh'  # Hasło aplikacji (nie zwykłe hasło!)
+DEFAULT_FROM_EMAIL = 'Plan Lekcji AWANS awans.pinczow.plan.lekcji@gmail.com'
+
+
+# Dla innego dostawcy SMTP (np. własny serwer):
+"""
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.twojadomena.pl'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'noreply@twojadomena.pl'
+EMAIL_HOST_PASSWORD = 'twoje-haslo'
+DEFAULT_FROM_EMAIL = 'Plan Lekcji AWANS <noreply@twojadomena.pl>'
+"""
+
+# ============================================
+# SESJE I BEZPIECZEŃSTWO
+# ============================================
+
+# Sesja wygasa po 12 godzinach braku aktywności
+SESSION_COOKIE_AGE = 43200  # 12 godzin w sekundach
+
+# Sesja wygasa przy zamknięciu przeglądarki (chyba że zaznaczono "Zapamiętaj")
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Bezpieczeństwo cookies (włącz w produkcji z HTTPS)
+# SESSION_COOKIE_SECURE = True  # Tylko HTTPS
+# CSRF_COOKIE_SECURE = True     # Tylko HTTPS
+
+# Ochrona przed clickjacking
+X_FRAME_OPTIONS = 'DENY'
+
+# Ochrona przed XSS
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
+# ============================================
+# JAK UZYSKAĆ HASŁO APLIKACJI GMAIL
+# ===================================

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="generator-container">
+    <div class="page-header">
+        <h1 class="page-title">Centrum Sterowania Planem</h1>
+    </div>
+
+    <div class="generator-grid">
+        <div class="card gen-card" style="border-top-color: #ef4444;">
+            <div class="gen-card-header" style="background: #991b1b;">
+                <i class="fas fa-save me-2"></i> Tryb Generowania (Zapisuje)
+            </div>
+            <div class="gen-card-body">
+                <button onclick="startTask('NOWY')" class="btn-gen btn-gen-new">
+                    <i class="fas fa-trash-alt"></i>
+                    <strong>Generuj NOWY Plan</strong>
+                    <span>Usuwa wszystko i układa od zera.</span>
+                </button>
+
+                <button onclick="startTask('UPDATE')" class="btn-gen btn-gen-update">
+                    <i class="fas fa-tools"></i>
+                    <strong>Aktualizuj Plan</strong>
+                    <span>Dopełnia brakujące lekcje do obecnego planu.</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card gen-card" style="border-top-color: #0ea5e9;">
+            <div class="gen-card-header" style="background: #075985;">
+                <i class="fas fa-search me-2"></i> Diagnoza (Bez zapisu)
+            </div>
+            <div class="gen-card-body">
+                <button onclick="startTask('DIAGNOZA_NOWY')" class="btn-gen btn-gen-diag">
+                    <i class="fas fa-microscope"></i>
+                    <strong>Sprawdź wykonalność (NOWY)</strong>
+                    <span class="diag-info">Symuluje układanie całości od zera.</span>
+                </button>
+
+                <button onclick="startTask('DIAGNOZA_UPDATE')" class="btn-gen btn-gen-diag">
+                    <i class="fas fa-stethoscope"></i>
+                    <strong>Sprawdź braki (UPDATE)</strong>
+                    <span class="diag-info">Sprawdza czy da się dopisać brakujące lekcje.</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" id="monitor-card">
+        <div class="gen-card-header">Monitor Aktywnego Procesu</div>
+        <div class="gen-card-body">
+            <div class="status-box">
+                <p id="status-text">Status: Oczekiwanie na wybór akcji...</p>
+                <div id="loading-spinner" class="spinner-gen" style="display: none;"></div>
+                <div id="result-box" class="alert-box"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function startTask(typ) {
+        const isDiag = typ.includes('DIAGNOZA');
+
+        Swal.fire({
+            title: isDiag ? 'Uruchomić diagnozę?' : 'Potwierdź generowanie',
+            text: isDiag
+                ? `Czy chcesz sprawdzić możliwość ułożenia planu w trybie: ${typ}?`
+                : `UWAGA! Tryb ${typ} nadpisze dane w bazie. Kontynuować?`,
+            icon: isDiag ? 'info' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: isDiag ? '#0ea5e9' : '#ef4444',
+            cancelButtonColor: '#6e7881',
+            confirmButtonText: 'Tak, uruchom',
+            cancelButtonText: 'Anuluj',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                wykonajStart(typ);
+            }
+        });
+    }
+
+    function wykonajStart(typ) {
+        // Reset interfejsu monitora
+        document.getElementById('loading-spinner').style.display = 'block';
+        document.getElementById('result-box').style.display = 'none';
+        document.getElementById('status-text').innerText = "Inicjalizacja algorytmu...";
+
+        // Przewiń do monitora
+        document.getElementById('monitor-card').scrollIntoView({ behavior: 'smooth' });
+
+        fetch(`/generator/start/${typ}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Serwer zwrócił błąd');
+            return response.json();
+        })
+        .then(data => {
+            if(data.task_id) {
+                pollStatus(data.task_id);
+            } else {
+                Swal.fire('Błąd!', 'Nie udało się uzyskać ID zadania.', 'error');
+                document.getElementById('loading-spinner').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            Swal.fire('Błąd połączenia', error.message, 'error');
+            document.getElementById('loading-spinner').style.display = 'none';
+        });
+    }
+
+    function pollStatus(taskId) {
+        const interval = setInterval(() => {
+            fetch(`/generator/status/${taskId}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status-text').innerText = "Status: " + data.status;
+
+                if (data.status === 'SUKCES' || data.status === 'BLAD') {
+                    clearInterval(interval);
+                    document.getElementById('loading-spinner').style.display = 'none';
+
+                    const resultBox = document.getElementById('result-box');
+                    resultBox.style.display = 'block';
+                    resultBox.innerText = data.wiadomosc;
+
+                    if(data.status === 'SUKCES') {
+                        resultBox.className = 'alert-box alert-success';
+                        Swal.fire('Zakończono!', 'Operacja przebiegła pomyślnie.', 'success');
+                    } else {
+                        resultBox.className = 'alert-box alert-danger';
+                        Swal.fire('Błąd algorytmu', 'Szczegóły w raporcie poniżej.', 'error');
+                    }
+                }
+            })
+            .catch(err => console.error("Polling error:", err));
+        }, 1500);
+    }
+</script>
+{% endblock %}

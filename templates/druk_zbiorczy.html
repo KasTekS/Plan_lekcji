@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Drukuj wszystkie plany - Panel AWANS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Drukowanie planów wszystkich klas</h1>
+    <div>
+        <button onclick="window.print()" class="btn btn-primary no-print">
+            <i class="fas fa-print"></i> Drukuj wszystkie plany
+        </button>
+    </div>
+</div>
+
+{% for item in plany_klas %}
+
+<div class="page-break">
+
+    <div class="card">
+        <h2 class="text-center my-3" style="font-family: 'Poppins', sans-serif; color: var(--awans-navy); margin-bottom: 20px;">
+            Plan lekcji: <span style="color: var(--awans-gold-hover);">{{ item.klasa.nazwa }}</span>
+        </h2>
+
+        <div class="plan-container desktop-only">
+            <table class="plan-table">
+                <thead>
+                    <tr>
+                        <th class="col-number">NR</th>
+                        <th>PONIEDZIAŁEK</th>
+                        <th>WTOREK</th>
+                        <th>ŚRODA</th>
+                        <th>CZWARTEK</th>
+                        <th>PIĄTEK</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for godzina in godziny %}
+                    <tr>
+                        <td class="col-number-cell">
+                            <div class="lesson-number-main">{{ godzina }}</div>
+                            <div class="lesson-hours-sub">
+                                {% if godzina == 1 %}07:00 &ndash; 07:45
+                                {% elif godzina == 2 %}07:50 &ndash; 08:35
+                                {% elif godzina == 3 %}08:40 &ndash; 09:25
+                                {% elif godzina == 4 %}09:30 &ndash; 10:15
+                                {% elif godzina == 5 %}10:30 &ndash; 11:15
+                                {% elif godzina == 6 %}11:20 &ndash; 12:05
+                                {% elif godzina == 7 %}12:10 &ndash; 12:55
+                                {% elif godzina == 8 %}13:00 &ndash; 13:45
+                                {% elif godzina == 9 %}13:50 &ndash; 14:35
+                                {% elif godzina == 10 %}14:40 &ndash; 15:25
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% for dzien in dni %}
+                            {% with lekcja=item.plan|get_item:godzina|get_item:dzien %}
+                            <td class="lesson-cell">
+                                {% if lekcja %}
+                                    <div class="lesson-content">
+                                        <div class="lesson-subject">{{ lekcja.linia1 }}</div>
+                                        <div class="lesson-details">{{ lekcja.linia2 }}</div>
+                                        {% if lekcja.sala %}
+                                            <div class="lesson-room">
+                                                <i class="fas fa-door-open"></i> {{ lekcja.sala }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span style="display:block; width:100%; height:100%;">&nbsp;</span>
+                                {% endif %}
+                            </td>
+                            {% endwith %}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+{% endfor %}
+
+{% endblock %}

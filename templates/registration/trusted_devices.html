@@ -1,0 +1,88 @@
+
+
+<!-- templates/registration/trusted_devices.html -->
+{% extends 'base.html' %}
+
+{% block title %}Zaufane Urządzenia{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <h1 class="page-title">
+        <i class="fas fa-shield-alt"></i> Zaufane Urządzenia
+    </h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <p style="margin-bottom: 1.5rem; color: #666;">
+            Zarządzaj urządzeniami, które nie wymagają weryfikacji dwuetapowej przy logowaniu.
+        </p>
+
+        {% if devices %}
+            <div style="margin-bottom: 1rem;">
+                <form method="post" action="{% url 'remove_all_trusted_devices' %}" 
+                      onsubmit="return confirm('Czy na pewno chcesz usunąć WSZYSTKIE zaufane urządzenia?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Usuń Wszystkie
+                    </button>
+                </form>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Urządzenie</th>
+                        <th>Adres IP</th>
+                        <th>Dodano</th>
+                        <th>Ostatnie Użycie</th>
+                        <th>Wygasa</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-desktop" style="color: var(--awans-navy); margin-right: 8px;"></i>
+                            <strong>{{ device.device_name }}</strong>
+                        </td>
+                        <td><code>{{ device.ip_address }}</code></td>
+                        <td>{{ device.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ device.last_used|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if device.is_valid %}
+                                <span style="color: #28a745;">
+                                    {{ device.expires_at|date:"Y-m-d" }}
+                                </span>
+                            {% else %}
+                                <span style="color: #dc3545;">Wygasłe</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'remove_trusted_device' device.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline" 
+                                        onclick="return confirm('Czy na pewno chcesz usunąć to urządzenie?');">
+                                    <i class="fas fa-times"></i> Usuń
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div style="text-align: center; padding: 3rem; color: #999;">
+                <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 1rem;"></i>
+                <p>Nie masz żadnych zaufanych urządzeń.</p>
+                <p>Przy kolejnym logowaniu zaznacz "Zapamiętaj to urządzenie".</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

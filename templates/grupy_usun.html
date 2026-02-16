@@ -58,4 +58,27 @@
         </div>
     </form>
 </div>
+    {% block scripts %}
+<script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+
+        Swal.fire({
+            title: 'Potwierdź usunięcie grupy',
+            text: "Zostanie usunięta grupa: {{ grupa.nazwa_grupy }}",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Tak, usuń grupę',
+            cancelButtonText: 'Anuluj',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

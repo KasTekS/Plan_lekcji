@@ -25,10 +25,11 @@
                    placeholder="Nazwa grupy, klasa (np. 1A) lub przedmiot...">
         </div>
 
-        <div style="flex: 1; min-width: 250px;">
-            <label class="filter-label">Opiekun grupy:</label>
+<div style="flex: 1; min-width: 200px;">
+            <label class="filter-label">Nauczyciel:</label>
             <select name="nauczyciel_id" class="styled-select">
                 <option value="">-- Wszyscy --</option>
+
                 {% for n in nauczyciele %}
                     <option value="{{ n.id }}" {% if n.id|stringformat:"s" == selected_nauczyciel_id %}selected{% endif %}>
                         {{ n.imie_nazwisko }}
@@ -74,6 +75,9 @@
                        {% if 'nauczyciel' in current_sort %}<i class="fas fa-sort{% if '-' in current_sort %}-up{% else %}-down{% endif %}"></i>{% endif %}
                     </a>
                 </th>
+
+                <th>Rozmieszczenie</th>
+
                 <th>Przypisane Klasy</th>
                 <th style="text-align: center;">
                     <a href="?sort={% if current_sort == 'godziny' %}-godziny{% else %}godziny{% endif %}&q={{ search_query }}&nauczyciel_id={{ selected_nauczyciel_id }}"
@@ -90,9 +94,11 @@
                 <td><strong>{{ grupa.nazwa_grupy }}</strong></td>
                 <td>{{ grupa.przedmiot.nazwa_przedmiotu }}</td>
                 <td>{{ grupa.nauczyciel.imie_nazwisko }}</td>
+
+                <td>{{ grupa.get_rozmieszczenie_display|default:"-" }}</td>
+
                 <td>
                     {% for klasa in grupa.klasy.all %}
-                        {# Podświetlenie szukanej klasy (opcjonalny bajer CSS, tutaj po prostu wyświetlamy) #}
                         <span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 4px;">
                             {{ klasa.nazwa|default:klasa.id }}
                         </span>
@@ -102,18 +108,18 @@
                 </td>
                 <td style="text-align: center;">{{ grupa.liczba_godzin_w_grupie }}</td>
                <td>
-    <a href="{% url 'edytuj_grupe' grupa.id %}" class="action-btn" title="Edytuj">
-        <i class="fas fa-edit"></i>
-    </a>
+                <a href="{% url 'edytuj_grupe' grupa.id %}" class="action-btn" title="Edytuj">
+                    <i class="fas fa-edit"></i>
+                </a>
 
-    <a href="{% url 'usun_grupe' grupa.id %}" class="action-btn delete" title="Usuń">
-        <i class="fas fa-trash-alt"></i>
-    </a>
-</td>
+                <a href="{% url 'usun_grupe' grupa.id %}" class="action-btn delete" title="Usuń">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+            </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+                <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
                     Brak zdefiniowanych grup dla wybranych filtrów.
                 </td>
             </tr>

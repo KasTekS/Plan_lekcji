@@ -7,12 +7,22 @@
     <title>{% block title %}System Planowania - AWANS{% endblock %}</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=4">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .swal2-styled.swal2-confirm {
+            background-color: var(--awans-navy) !important;
+        }
+        .swal2-styled.swal2-cancel {
+            background-color: #64748b !important;
+        }
+    </style>
 </head>
 <body>
 
-    <aside class="sidebar">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo-container">
                 <img src="{% static 'img/logo.png' %}" alt="Logo AWANS">
@@ -20,7 +30,7 @@
             <div class="school-name">Szkoła AWANS Pinczów</div>
         </div>
 
-       <nav class="sidebar-nav">
+        <nav class="sidebar-nav">
             <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
                 <i class="fas fa-calendar-days"></i> Plan Lekcji
             </a>
@@ -29,6 +39,10 @@
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0 10px 0;">
                     <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; padding-left: 15px; font-weight: bold;">Zarządzanie</span>
                 </div>
+
+                <a href="{% url 'panel_generatora' %}" class="nav-link {% if '/generator/' in request.path %}active{% endif %}">
+                    <i class="fas fa-gears"></i> Generator
+                </a>
 
                 <a href="{% url 'wymagania' %}" class="nav-link {% if '/wymagania/' in request.path %}active{% endif %}">
                     <i class="fas fa-list-check"></i> Wymagania
@@ -96,6 +110,75 @@
         {% block content %}
         {% endblock %}
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // === HAMBURGER MENU - TYLKO NA MOBILE ===
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+
+        // Otwórz/zamknij menu
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            });
+        }
+
+        // Zamknij menu po kliknięciu w overlay
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            });
+        }
+
+        // Zamknij menu po kliknięciu w link (tylko na mobile)
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 992) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+
+        // === DJANGO FLASH MESSAGES ===
+        {% if messages %}
+            {% for message in messages %}
+                Swal.fire({
+                    icon: '{{ message.tags }}' === 'error' ? 'error' : 'success',
+                    title: '{{ message.tags|capfirst }}',
+                    text: '{{ message }}',
+                    timer: 3000,
+                    timerProgressBar: true,
+                    confirmButtonColor: 'var(--awans-navy)'
+                });
+            {% endfor %}
+        {% endif %}
+
+        // === POTWIERDZANIE USUNIĘCIA ===
+        function confirmDelete(button, text) {
+            Swal.fire({
+                title: 'Czy na pewno?',
+                text: text || "Tej operacji nie można cofnąć!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Tak, usuń!',
+                cancelButtonText: 'Anuluj',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    button.closest('form').submit();
+                }
+            });
+        }
+    </script>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     {% block scripts %}{% endblock %}

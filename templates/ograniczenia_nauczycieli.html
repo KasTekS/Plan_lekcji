@@ -93,8 +93,15 @@ function toggleCell(element, type, id, day, hour) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'error') {
-            alert('Wystąpił błąd podczas zapisywania zmian.');
-            // Cofnij zmianę wizualną
+            // Użycie SweetAlert2 dla błędu zapisu
+            Swal.fire({
+                title: 'Błąd zapisu',
+                text: 'Wystąpił problem podczas komunikacji z serwerem.',
+                icon: 'error',
+                confirmButtonColor: 'var(--awans-navy)'
+            });
+
+            // Revert UI (Cofnięcie zmiany wizualnej w razie błędu)
             if (isBlocked) {
                 element.classList.add('blocked');
                 element.classList.remove('free');
@@ -105,8 +112,7 @@ function toggleCell(element, type, id, day, hour) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Błąd połączenia z serwerem.');
+        Swal.fire('Błąd sieci', 'Brak połączenia z serwerem.', 'error');
     });
 }
 </script>

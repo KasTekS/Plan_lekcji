@@ -68,9 +68,10 @@
                     </a>
                     <form action="{% url 'usun_klase' k.id %}" method="post" style="display:inline;">
                         {% csrf_token %}
-                        <button type="submit" class="action-btn delete" onclick="return confirm('Usunąć klasę {{ k.id }}?')" title="Usuń">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                       <button type="button" class="action-btn delete"
+        onclick="confirmDelete(this, 'Usunąć klasę {{ k.id }}?')" title="Usuń">
+    <i class="fas fa-trash-alt"></i>
+</button>
                     </form>
                 </td>
             </tr>

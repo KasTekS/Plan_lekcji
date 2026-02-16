@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h1 class="page-title">Sugerowane Grupy Międzyoddziałowe</h1>
+    <h1 class="page-title">Sugerowane Grupy 2-Klasowe</h1>
     <a href="{% url 'grupy' %}" class="btn btn-primary">
         <i class="fas fa-arrow-left"></i> Wróć do listy grup
     </a>
@@ -12,20 +12,36 @@
 
 <div class="card" style="margin-bottom: 2rem; background: #fff7ed; border-left: 5px solid #f97316;">
     <p style="margin: 0; color: #9a3412;">
-        <i class="fas fa-lightbulb"></i> 
-        Poniżej znajdują się propozycje grup wygenerowane na podstawie wymagań. 
-        System połączył klasy z tego samego rocznika, które mają ten sam przedmiot, nauczyciela i liczbę godzin, 
-        a ich łączna liczebność nie przekracza <strong>51 osób</strong>.
+        <i class="fas fa-lightbulb"></i>
+        Poniżej znajdują się <strong>wszystkie możliwe kombinacje 2-klasowe</strong> wygenerowane na podstawie wymagań.
+        System połączył klasy z tego samego rocznika, które mają:
+    </p>
+    <ul style="margin: 0.5rem 0 0 2rem; color: #9a3412;">
+        <li>Ten sam przedmiot</li>
+        <li>Tego samego nauczyciela</li>
+        <li>Tę samą liczbę godzin</li>
+        <li>Łączną liczebność nieprzekraczającą <strong>30 osób</strong></li>
+    </ul>
+</div>
+
+<!-- Licznik sugestii -->
+{% if sugestie %}
+<div class="card" style="margin-bottom: 1rem; background: #dbeafe; border-left: 5px solid #3b82f6; padding: 1rem;">
+    <p style="margin: 0; color: #1e40af; font-weight: bold;">
+        <i class="fas fa-info-circle"></i>
+        Znaleziono {{ sugestie|length }} możliw{{ sugestie|length|pluralize:"ą,e,ych" }} kombinacj{{ sugestie|length|pluralize:"ę,e,i" }}
     </p>
 </div>
+{% endif %}
 
 <div class="card">
     <table>
         <thead>
             <tr>
+                <th>Proponowana nazwa grupy</th>
                 <th>Przedmiot</th>
                 <th>Nauczyciel</th>
-                <th>Proponowane klasy</th>
+                <th>Klasy</th>
                 <th style="text-align: center;">Rocznik</th>
                 <th style="text-align: center;">Łącznie osób</th>
                 <th style="text-align: center;">Godziny</th>
@@ -35,7 +51,10 @@
         <tbody>
             {% for sugestia in sugestie %}
             <tr>
-                <td style="font-weight: bold;">{{ sugestia.przedmiot.nazwa_przedmiotu }}</td>
+                <td style="font-weight: bold; color: #0ea5e9;">
+                    {{ sugestia.nazwa_proponowana }}
+                </td>
+                <td>{{ sugestia.przedmiot.nazwa_przedmiotu }}</td>
                 <td>{{ sugestia.nauczyciel.imie_nazwisko|default:"- Wakat -" }}</td>
                 <td>
                     {% for k in sugestia.klasy %}
@@ -44,7 +63,7 @@
                 </td>
                 <td style="text-align: center;">{{ sugestia.rok }}</td>
                 <td style="text-align: center;">
-                    <span style="font-weight: bold; {% if sugestia.suma_osob > 30 %}color: #d97706;{% else %}color: #166534;{% endif %}">
+                    <span style="font-weight: bold; {% if sugestia.suma_osob > 15 %}color: #d97706;{% else %}color: #166534;{% endif %}">
                         {{ sugestia.suma_osob }}
                     </span>
                 </td>
@@ -52,28 +71,43 @@
                     <span class="badge-hours">{{ sugestia.godziny }}</span>
                 </td>
                 <td style="text-align: right;">
-                    <form action="{% url 'akceptuj_sugestie' %}" method="post">
+                    <form action="{% url 'utworz_grupe_z_sugestii' %}" method="post" style="display: inline;">
                         {% csrf_token %}
                         <input type="hidden" name="przedmiot_id" value="{{ sugestia.przedmiot.id }}">
                         <input type="hidden" name="nauczyciel_id" value="{{ sugestia.nauczyciel.id }}">
                         <input type="hidden" name="godziny" value="{{ sugestia.godziny }}">
                         <input type="hidden" name="ids_klas" value="{{ sugestia.ids_klas_hidden }}">
-                        
+                        <input type="hidden" name="nazwa_proponowana" value="{{ sugestia.nazwa_proponowana }}">
+
                         <button type="submit" class="btn btn-gold" style="padding: 5px 10px; font-size: 0.9em;">
-                            <i class="fas fa-check"></i> Utwórz
+                            <i class="fas fa-edit"></i> Otwórz formularz
                         </button>
                     </form>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" style="text-align: center; padding: 3rem; color: #94a3b8;">
+                <td colspan="8" style="text-align: center; padding: 3rem; color: #94a3b8;">
                     <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
-                    Brak nowych sugestii. Wszystkie wymagania są już pojedyncze lub zostały zgrupowane.
+                    Brak sugestii. Wszystkie wymagania są już pojedyncze lub nie spełniają kryteriów grupowania.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Legenda -->
+{% if sugestie %}
+<div class="card" style="margin-top: 1rem; background: #f8fafc; padding: 1rem;">
+    <h3 style="margin: 0 0 0.5rem 0; font-size: 0.95em; color: #475569;">
+        <i class="fas fa-info-circle"></i> Legenda:
+    </h3>
+    <ul style="margin: 0; font-size: 0.9em; color: #64748b;">
+        <li><strong>Badge klasy</strong> - nazwa klasy (liczba uczniów)</li>
+        <li><strong>Łącznie osób</strong> - zielone: ≤15 osób, pomarańczowe: 16-30 osób</li>
+        <li><strong>Proponowana nazwa</strong> - możesz ją zmienić w formularzu przed zapisem</li>
+    </ul>
+</div>
+{% endif %}
 {% endblock %}

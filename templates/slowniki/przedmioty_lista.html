@@ -58,9 +58,10 @@
                     </a>
                     <form action="{% url 'usun_przedmiot' p.id %}" method="post" style="display:inline;">
                         {% csrf_token %}
-                        <button type="submit" class="action-btn delete" onclick="return confirm('Usunąć przedmiot {{ p.nazwa_przedmiotu }}?')" title="Usuń">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                      <button type="button" class="action-btn delete"
+        onclick="confirmDelete(this, 'Usunąć przedmiot {{ p.nazwa_przedmiotu }}?')" title="Usuń">
+    <i class="fas fa-trash-alt"></i>
+</button>
                     </form>
                 </td>
             </tr>

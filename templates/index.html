@@ -4,19 +4,25 @@
 {% block title %}Plan Lekcji - Panel AWANS{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Plan Lekcji</h1>
+
     <div>
+       <div class="page-header">
+    <h1 class="page-title">Plan Lekcji-Awans Pinczów</h1>
+    <div style="display: flex; gap: 10px;">
+        <a href="{% url 'drukuj_plany_zbiorcze' %}" class="btn btn-secondary">
+            <i class="fas fa-copy"></i> Drukuj Wszystkie Klasy
+        </a>
         <button class="btn btn-primary" onclick="window.print()">
-            <i class="fas fa-print"></i> Drukuj
+            <i class="fas fa-print"></i> Drukuj Obecny
         </button>
+    </div>
+</div>
     </div>
 </div>
 
 <div class="filters-container">
     <form method="get" action="" id="filterForm">
         <div class="filters-wrapper">
-
             <div class="filter-box">
                 <label for="klasa_id" class="filter-label">
                     <i class="fas fa-users"></i> Wybierz Klasę
@@ -51,7 +57,6 @@
                     {% endfor %}
                 </select>
             </div>
-
         </div>
     </form>
 </div>
@@ -81,7 +86,22 @@
                 <tbody>
     {% for godzina in godziny %}
     <tr>
-        <td class="col-number-cell">{{ godzina }}</td>
+        <td class="col-number-cell">
+    <div class="lesson-number-main">{{ godzina }}</div>
+    <div class="lesson-hours-sub">
+        {% if godzina|stringformat:"s" == "1" %}07:00 &ndash; 07:45
+        {% elif godzina|stringformat:"s" == "2" %}07:50 &ndash; 08:35
+        {% elif godzina|stringformat:"s" == "3" %}08:40 &ndash; 09:25
+        {% elif godzina|stringformat:"s" == "4" %}09:30 &ndash; 10:15
+        {% elif godzina|stringformat:"s" == "5" %}10:30 &ndash; 11:15
+        {% elif godzina|stringformat:"s" == "6" %}11:20 &ndash; 12:05
+        {% elif godzina|stringformat:"s" == "7" %}12:10 &ndash; 12:55
+        {% elif godzina|stringformat:"s" == "8" %}13:00 &ndash; 13:45
+        {% elif godzina|stringformat:"s" == "9" %}13:50 &ndash; 14:35
+        {% elif godzina|stringformat:"s" == "10" %}14:40 &ndash; 15:25
+        {% endif %}
+    </div>
+</td>
         {% for dzien in dni %}
             {% with l=plan|get_item:godzina|get_item:dzien %}
                 <td class="lesson-cell {% if l and request.user.is_staff %}editable{% endif %}"
@@ -93,30 +113,19 @@
                     {% endif %}
                     style="position: relative;"
                     >
-
                     {% if l %}
                         <div class="lesson-content"
                              {% if request.user.is_staff %}
                                 draggable="true"
                                 ondragstart="drag(event)"
                                 data-lesson-id="{{ l.id }}"
-                                onclick="// Tu zostawiamy stary onclick, ale obsłużymy go inteligentnie w JS"
                              {% endif %}
                              >
-
-                            <div class="lesson-subject">
-                                {{ l.linia1 }}
-                            </div>
-                            <div class="lesson-details">
-                                {{ l.linia2 }}
-                            </div>
-
+                            <div class="lesson-subject">{{ l.linia1 }}</div>
+                            <div class="lesson-details">{{ l.linia2 }}</div>
                             {% if l.sala %}
-                                <div class="lesson-room">
-                                    <i class="fas fa-door-open"></i> {{ l.sala }}
-                                </div>
+                                <div class="lesson-room"><i class="fas fa-door-open"></i>Sala: {{ l.sala }}</div>
                             {% endif %}
-
                             {% if request.user.is_staff %}
                                 <div class="edit-hint" onclick="window.location.href='{% url 'edytuj_pojedyncza_lekcje' l.id %}'">
                                     <i class="fas fa-pen"></i>
@@ -147,20 +156,34 @@
                                         onclick="window.location.href='{% url 'edytuj_pojedyncza_lekcje' l.id %}'"
                                      {% endif %}>
 
-                                    <div class="mobile-lesson-hour">{{ godzina }}</div>
+                                    <div class="mobile-lesson-hour">
+                                        <strong>{{ godzina }}</strong>
+                                        <small>
+                                            {% if godzina|stringformat:"s" == "1" %}07:00-07:45
+                                            {% elif godzina|stringformat:"s" == "2" %}07:50-08:35
+                                            {% elif godzina|stringformat:"s" == "3" %}08:40-09:25
+                                            {% elif godzina|stringformat:"s" == "4" %}09:30-10:15
+                                            {% elif godzina|stringformat:"s" == "5" %}10:30-11:15
+                                            {% elif godzina|stringformat:"s" == "6" %}11:20-12:05
+                                            {% elif godzina|stringformat:"s" == "7" %}12:10-12:55
+                                            {% elif godzina|stringformat:"s" == "8" %}13:00-13:45
+                                            {% elif godzina|stringformat:"s" == "9" %}13:50-14:35
+                                            {% elif godzina|stringformat:"s" == "10" %}14:40-15:25
+                                            {% endif %}
+                                        </small>
+                                    </div>
 
                                     <div class="mobile-lesson-info">
                                         {% if l %}
                                             <div class="m-subject">{{ l.linia1 }}</div>
                                             <div class="m-details">{{ l.linia2 }}</div>
                                             {% if l.sala %}
-                                                <div class="m-room"><i class="fas fa-door-open"></i> {{ l.sala }}</div>
+                                                <div class="m-room"><i class="fas fa-door-open"></i>Sala {{ l.sala }}</div>
                                             {% endif %}
                                         {% else %}
                                             <span class="m-empty">-</span>
                                         {% endif %}
                                     </div>
-
                                     {% if l and request.user.is_staff %}
                                         <div class="mobile-edit-icon"><i class="fas fa-pen"></i></div>
                                     {% endif %}
@@ -171,7 +194,6 @@
                 </div>
             {% endfor %}
         </div>
-
     </div>
 {% else %}
     <div class="alert alert-info" style="border-left: 5px solid var(--awans-navy);">
@@ -179,29 +201,25 @@
     </div>
 {% endif %}
 
-<script>
-    function clearAndSubmit(idToClear) {
-        document.getElementById(idToClear).value = "";
-        document.getElementById('filterForm').submit();
-    }
-</script>
 {% block scripts %}
+
 <script>
+    // Funkcja do czyszczenia filtrów (bez zmian)
     function clearAndSubmit(idToClear) {
         document.getElementById(idToClear).value = "";
         document.getElementById('filterForm').submit();
     }
-
-    // --- DRAG & DROP Z WALIDACJĄ ---
 
     let draggedLessonId = null;
 
+    // Obsługa wizualna nad elementem (bez zmian)
     function allowDrop(ev) {
         ev.preventDefault();
         ev.currentTarget.style.backgroundColor = "#e0f2fe";
         ev.currentTarget.style.border = "2px dashed var(--awans-gold)";
     }
 
+    // Rozpoczęcie przeciągania (bez zmian)
     function drag(ev) {
         draggedLessonId = ev.currentTarget.getAttribute("data-lesson-id");
         ev.dataTransfer.setData("text", draggedLessonId);
@@ -209,10 +227,9 @@
         ev.currentTarget.style.opacity = "0.4";
     }
 
+    // Upuszczenie elementu (ZMODYFIKOWANA)
     function drop(ev) {
         ev.preventDefault();
-
-        // Reset stylów
         ev.currentTarget.style.backgroundColor = "";
         ev.currentTarget.style.border = "";
 
@@ -223,30 +240,30 @@
         const targetHour = targetCell.getAttribute('data-hour');
 
         const typWidoku = "{{ typ_widoku }}";
-        let obiektId = null;
-        if(typWidoku === 'klasa') {
-            obiektId = document.getElementById('klasa_id').value;
-        } else if (typWidoku === 'nauczyciel') {
-            obiektId = document.getElementById('nauczyciel_id').value;
-        }
 
-        if (!draggedLessonId || !targetDay || !targetHour || !obiektId) {
-            return;
-        }
+        // Pobieramy ID widoku (klasa lub nauczyciel)
+        let obiektId = typWidoku === 'klasa' ? document.getElementById('klasa_id').value : document.getElementById('nauczyciel_id').value;
 
-        // Przygotowanie danych
+        // WAŻNE: Pobieramy jawnie ID wybranej klasy (nawet jeśli jesteśmy w innym widoku, ale formularz istnieje)
+        // Jest to potrzebne backendowi do rozdzielenia grup.
+        const selectedKlasaId = document.getElementById('klasa_id') ? document.getElementById('klasa_id').value : null;
+
+        if (!draggedLessonId || !targetDay || !targetHour || !obiektId) return;
+
         const payload = {
             lekcja_id: draggedLessonId,
             target_dzien: targetDay,
             target_godzina: targetHour,
             typ_widoku: typWidoku,
             obiekt_id: obiektId,
-            force: false // Domyślnie sprawdzamy błędy
+            klasa_id: selectedKlasaId, // <--- Dodane pole dla backendu
+            force: false
         };
 
         wyslijZadanie(payload);
     }
 
+    // Wysyłanie żądania do API (ZMODYFIKOWANA OBSŁUGA SUKCESU)
     function wyslijZadanie(payload) {
         fetch("{% url 'api_zamien_lekcje' %}", {
             method: 'POST',
@@ -259,29 +276,53 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'ok') {
-                location.reload();
-            }
-            else if (data.status === 'confirm') {
-                // Wyświetlamy błędy i pytamy o zgodę
-                const userConfirmed = confirm(data.message + "\n\nCzy mimo to chcesz wprowadzić zmiany?");
-
-                if (userConfirmed) {
-                    // Jeśli tak, wysyłamy ponownie z force: true
-                    payload.force = true;
-                    wyslijZadanie(payload);
+                // MODYFIKACJA: Sprawdzamy czy backend zwrócił wiadomość (ostrzeżenie o rozdzieleniu grupy)
+                if (data.message && data.message.length > 0) {
+                    Swal.fire({
+                        icon: 'warning', // Ikona ostrzeżenia zamiast sukcesu
+                        title: 'Zmiana wykonana',
+                        text: data.message, // Treść: "Lekcja została rozdzielona..."
+                        confirmButtonText: 'Rozumiem',
+                        confirmButtonColor: '#f39c12'
+                    }).then(() => location.reload());
                 } else {
-                    // Anulowano - przywracamy wygląd
-                    resetDragVisuals();
+                    // Standardowy sukces (krótki komunikat)
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Zapisano',
+                        showConfirmButton: false,
+                        timer: 800
+                    }).then(() => location.reload());
                 }
             }
+            else if (data.status === 'confirm') {
+                // Obsługa konfliktów (bez zmian)
+                Swal.fire({
+                    title: 'Wykryto konflikty!',
+                    html: data.message.replace(/\n/g, '<br>') + '<br><br><b>Czy mimo to chcesz wprowadzić zmiany?</b>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Tak, wymuś zmianę',
+                    cancelButtonText: 'Anuluj',
+                    confirmButtonColor: '#d33'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        payload.force = true;
+                        wyslijZadanie(payload);
+                    } else {
+                        resetDragVisuals();
+                    }
+                });
+            }
             else {
-                alert('Błąd: ' + data.message);
+                // Błąd operacji
+                Swal.fire('Błąd operacji', data.message || data.error, 'error');
                 resetDragVisuals();
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Wystąpił błąd połączenia.');
+            console.error(error);
+            Swal.fire('Błąd połączenia', 'Nie udało się skontaktować z serwerem.', 'error');
             resetDragVisuals();
         });
     }
@@ -292,14 +333,10 @@
     }
 
     document.addEventListener("dragend", function(event) {
-        if(event.target.classList.contains("lesson-content")) {
-            event.target.style.opacity = "1";
-        }
-        document.querySelectorAll('.lesson-cell').forEach(td => {
-             td.style.backgroundColor = "";
-             td.style.border = "";
-        });
+        if(event.target.classList.contains("lesson-content")) event.target.style.opacity = "1";
+        document.querySelectorAll('.lesson-cell').forEach(td => { td.style.backgroundColor = ""; td.style.border = ""; });
     });
 </script>
+
 {% endblock %}
 {% endblock %}

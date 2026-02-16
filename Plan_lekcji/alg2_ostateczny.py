@@ -209,11 +209,17 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
 
     przydzial_grupowy = {}
     wszystkie_lekcje_grupowe = []
+
     for grupa in grupy_z_bazy:
-        id_g = grupa['id_grupy']
+        id_g = grupa['id_grupy']  # To jest prawdziwe ID z bazy (Primary Key)
         l_godzin = grupa['liczba_godzin']
         rozm = grupa['rozmieszczenie']
         klucz_grupy = ('grup', id_g)
+
+        # Inicjalizacja wpisu w lekcje_do_specjalnej_obslugi, jeśli jeszcze nie istnieje
+        if klucz_grupy not in lekcje_do_specjalnej_obslugi:
+            lekcje_do_specjalnej_obslugi[klucz_grupy] = {'dni': [], 'godziny': []}
+
         lekcje_do_specjalnej_obslugi[klucz_grupy].update({'klasy': grupa['klasy'], 'rozm': rozm, 'N': l_godzin})
 
         historia_lekcji = []
@@ -221,9 +227,17 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
             historia_lekcji = stary_plan_grup.get(id_g, [])
 
         for i in range(l_godzin):
-            lekcja_id = (id_g, i)
-            lekcja_info = {'id': lekcja_id, **grupa}
+            lekcja_id = (id_g, i)  # Unikalny identyfikator dla Solvera (krotka)
+
+            # --- ZMIANA TUTAJ ---
+            # Dodajemy 'id_grupy_db', aby przy zapisie wiedzieć, do której grupy w bazie to przypisać
+            lekcja_info = {
+                'id': lekcja_id,
+                'id_grupy_db': id_g,  # <--- KLUCZOWE DLA POPRAWNEGO ZAPISU
+                **grupa
+            }
             wszystkie_lekcje_grupowe.append(lekcja_info)
+
             day_var = model.NewIntVar(0, len(dni_tygodnia) - 1, f'grup_day_{id_g}_{i}')
             hour_var = model.NewIntVar(1, MAX_GODZINA, f'grup_hour_{id_g}_{i}')
             all_bool_vars = []
@@ -232,11 +246,14 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 var = model.NewBoolVar(f'grup_{id_g}_{i}_{dzien}_{godzina}')
                 przydzial_grupowy[(lekcja_id, dzien, godzina)] = var
                 all_bool_vars.append(var)
+
+                # Powiązanie zmiennych boolowskich z dniem i godziną
                 model.Add(day_var == dni_do_indeksu[dzien]).OnlyEnforceIf(var)
                 model.Add(hour_var == godzina).OnlyEnforceIf(var)
+
             model.AddExactlyOne(all_bool_vars)
 
-            # STABILIZACJA
+            # STABILIZACJA (Zachowanie starego planu)
             if zachowaj_obecny_plan and i < len(historia_lekcji):
                 stary_dzien, stara_godzina = historia_lekcji[i]
                 if stary_dzien in dni_do_indeksu:
@@ -256,7 +273,6 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
 
             lekcje_do_specjalnej_obslugi[klucz_grupy]['dni'].append(day_var)
             lekcje_do_specjalnej_obslugi[klucz_grupy]['godziny'].append(hour_var)
-
     # --- OGRANICZENIA TWARDE ---
     for id_k in id_klas:
         for dzien, godzina in wszystkie_sloty:
@@ -423,135 +439,129 @@ def generuj_plan(nauczyciele, przedmioty, klasy_info, wymagania_indywidualne, gr
                 model.Add(pracuje_w_dniu == 0)
 
     model.Minimize(sum(punkty_karne))
-
-    # --- Solver ---
+    # --- Krok 3: Uruchomienie solvera i Zapis Wyników (ORM) ---
+    print("Rozpoczynam szukanie rozwiązania...")
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 600.0
+    # Opcjonalnie: ustawienie limitu czasu (np. 5 minut)
+    solver.parameters.max_time_in_seconds = 300
+
     status = solver.Solve(model)
 
-    # --- Wyniki ---
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        print(f'\nZnaleziono rozwiązanie! tryb_stabilizacji={zachowaj_obecny_plan}')
-        print('Wartość funkcji celu (punkty karne):', solver.ObjectiveValue())
-        plan_do_zapisu = []
-        plan_lekcji = collections.defaultdict(dict)
+    # --- Krok 3: Zapis Wyników (Poprawione nazwy pól dla Twojego modelu) ---
 
-        for lekcja in wszystkie_lekcje_indywidualne:
-            for dzien, godzina in wszystkie_sloty:
-                if (lekcja['id'], dzien, godzina) in przydzial_indywidualny and solver.Value(
-                        przydzial_indywidualny[(lekcja['id'], dzien, godzina)]) == 1:
-                    dzien_skrot = mapowanie_dni_pl_na_skrot[dzien]
-                    plan_do_zapisu.append({
-                        'id_nauczyciel': lekcja['nauczyciel'], 'id_klasa': lekcja['klasa'],
-                        'id_przedmiot': lekcja['przedmiot'], 'dzien_tygodnia': dzien_skrot,
-                        'godzina_lekcyjna': godzina, 'id_grupy': None
-                    })
-                    plan_lekcji[(dzien, godzina)][
-                        lekcja['klasa']] = f"{przedmioty[lekcja['przedmiot']]} ({nauczyciele[lekcja['nauczyciel']]})"
+    # ... (kod solvera bez zmian: solver = cp_model.CpSolver() ... status = solver.Solve(model)) ...
 
-        for lekcja in wszystkie_lekcje_grupowe:
-            for dzien, godzina in wszystkie_sloty:
-                if (lekcja['id'], dzien, godzina) in przydzial_grupowy and solver.Value(
-                        przydzial_grupowy[(lekcja['id'], dzien, godzina)]) == 1:
-                    dzien_skrot = mapowanie_dni_pl_na_skrot[dzien]
-                    plan_do_zapisu.append({
-                        'id_nauczyciel': lekcja['nauczyciel'], 'id_klasa': None,
-                        'id_przedmiot': lekcja['przedmiot'], 'dzien_tygodnia': dzien_skrot,
-                        'godzina_lekcyjna': godzina, 'id_grupy': lekcja['id_grupy']
-                    })
-                    nazwy_klas = ", ".join(map(str, sorted(list(lekcja['klasy']))))
-                    opis_grupy = f"GRUPA: {nazwy_klas}"
-                    for id_k in lekcja['klasy']:
-                        plan_lekcji[(dzien, godzina)][
-                            id_k] = f"{przedmioty[lekcja['przedmiot']]} ({opis_grupy}) ({nauczyciele[lekcja['nauczyciel']]})"
-
-        zapisz_plan_w_bazie(plan_do_zapisu, db_params)
-
-        sorted_klasy = sorted(id_klas)
-        szerokosci_kolumn = {klasa: len(f"Klasa {klasa}") for klasa in sorted_klasy}
-        for (dzien, godzina), lekcje_w_slocie in plan_lekcji.items():
-            for klasa, opis_lekcji in lekcje_w_slocie.items():
-                if klasa in szerokosci_kolumn:
-                    szerokosci_kolumn[klasa] = max(szerokosci_kolumn[klasa], len(opis_lekcji))
-
-        for dzien in dni_tygodnia:
-            print(f"\n--- {dzien.upper()} ---")
-            max_godzina = max(godziny_lekcyjne[dzien])
-            naglowek = f"{'Godz.':<6}"
-            for klasa in sorted_klasy:
-                naglowek += f" | {f'Klasa {klasa}':<{szerokosci_kolumn[klasa]}}"
-            print(naglowek)
-            print("-" * len(naglowek))
-            for godzina in range(1, max_godzina + 1):
-                print(f"{godzina:<6}", end="")
-                for klasa in sorted_klasy:
-                    lekcja = plan_lekcji.get((dzien, godzina), {}).get(klasa, "---")
-                    print(f" | {lekcja:<{szerokosci_kolumn[klasa]}}", end="")
-                print()
-    else:
-        print('\nNie znaleziono rozwiązania w zadanym czasie.')
-
-
-# --- Krok 3: Funkcja zapisu do bazy ---
-def zapisz_plan_w_bazie(plan_do_zapisu, db_params):
-    """
-    Czyści tabelę plan_lekcji i zapisuje w niej nowy, wygenerowany plan.
-    """
-    conn = None
-    try:
-        conn = psycopg2.connect(**db_params)
-        cur = conn.cursor()
-        cur.execute("TRUNCATE TABLE plan_lekcji RESTART IDENTITY;")
-        print("\nStary plan lekcji został wyczyszczony.")
-
-        sql_insert = """
-                     INSERT INTO plan_lekcji (id_nauczyciel, id_klasa, id_przedmiot, dzien_tygodnia, godzina_lekcyjna, \
-                                              id_grupy)
-                     VALUES (%(id_nauczyciel)s, %(id_klasa)s, %(id_przedmiot)s, %(dzien_tygodnia)s, \
-                             %(godzina_lekcyjna)s, %(id_grupy)s); \
-                     """
-        cur.executemany(sql_insert, plan_do_zapisu)
-        conn.commit()
-        print(f"Pomyślnie zapisano {cur.rowcount} nowych rekordów w tabeli plan_lekcji.")
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(f"Błąd podczas zapisu planu do bazy danych: {error}")
-        if conn: conn.rollback()
-    finally:
-        if conn:
-            cur.close()
-            conn.close()
-
-
-# --- Krok 4: Uruchomienie programu ---
-if __name__ == '__main__':
-    # Konfiguracja (przykład użycia)
-    db_config = {
-        "host": "localhost",
-        "dbname": "plan_lekcji2",
-        "user": "postgres",
-        "password": "homo4cjh",
-        "client_encoding": "utf8"
+    wynik_dzialania = {
+        'czy_sukces': False,
+        'wiadomosc': ''
     }
 
-    dane = pobierz_dane_z_bazy(db_config)
+    # --- Krok 3: Zapis Wyników (z zachowaniem sal) ---
 
-    if dane and dane[0]:
-        nauczyciele, przedmioty, klasy, wymagania, grupy, ogr_nauczycieli, ogr_klas, stary_plan = dane
+    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+        print(f"Znaleziono rozwiązanie! Status: {solver.StatusName(status)}")
 
-        # Znajdź ID dla WF
-        id_wf = None
+        from django.db import transaction
+        from .models import PlanLekcji
+
+        # ========================================
+        # NOWE: Pobieranie mapowania starych sal
+        # ========================================
+        stare_sale = {}
+        if zachowaj_obecny_plan:
+            print("Pobieranie informacji o starych salach...")
+            stare_lekcje = PlanLekcji.objects.all()
+
+            for stara in stare_lekcje:
+                # Klucz dla lekcji indywidualnych
+                if stara.klasa and stara.nauczyciel and stara.przedmiot:
+                    klucz = ('ind', stara.nauczyciel.id, stara.klasa.id,
+                             stara.przedmiot.id, stara.dzien_tygodnia, stara.godzina_lekcyjna)
+                    stare_sale[klucz] = stara.sala or ""
+
+                # Klucz dla lekcji grupowych
+                elif stara.grupa:
+                    klucz = ('grup', stara.grupa.id, stara.dzien_tygodnia, stara.godzina_lekcyjna)
+                    stare_sale[klucz] = stara.sala or ""
+
+        nowy_plan_obiekty = []
+
+        # 1. Przetwarzanie lekcji indywidualnych
+        for lekcja in wszystkie_lekcje_indywidualne:
+            l_id = lekcja['id']
+            for dzien in dni_tygodnia:
+                for godzina in godziny_lekcyjne[dzien]:
+                    klucz_var = (l_id, dzien, godzina)
+
+                    if klucz_var in przydzial_indywidualny and solver.Value(przydzial_indywidualny[klucz_var]) == 1:
+                        dzien_skrot = mapowanie_dni_pl_na_skrot.get(dzien, dzien)
+
+                        # ========================================
+                        # NOWE: Sprawdzamy czy zachować salę
+                        # ========================================
+                        sala_do_zapisu = ""
+                        if zachowaj_obecny_plan:
+                            klucz_starej_sali = ('ind', lekcja['nauczyciel'], lekcja['klasa'],
+                                                 lekcja['przedmiot'], dzien_skrot, godzina)
+                            sala_do_zapisu = stare_sale.get(klucz_starej_sali, "")
+
+                        nowy_plan_obiekty.append(PlanLekcji(
+                            nauczyciel_id=lekcja['nauczyciel'],
+                            klasa_id=lekcja['klasa'],
+                            przedmiot_id=lekcja['przedmiot'],
+                            grupa_id=None,
+                            dzien_tygodnia=dzien_skrot,
+                            godzina_lekcyjna=godzina,
+                            sala=sala_do_zapisu  # ← TUTAJ WSTAWIAMY STARĄ SALĘ
+                        ))
+
+        # 2. Przetwarzanie lekcji grupowych
+        if 'wszystkie_lekcje_grupowe' in locals():
+            for lekcja in wszystkie_lekcje_grupowe:
+                l_id = lekcja['id']
+                realne_id_grupy = lekcja.get('id_grupy_db')
+
+                for dzien in dni_tygodnia:
+                    for godzina in godziny_lekcyjne[dzien]:
+                        klucz_var = (l_id, dzien, godzina)
+
+                        if klucz_var in przydzial_grupowy and solver.Value(przydzial_grupowy[klucz_var]) == 1:
+                            dzien_skrot = mapowanie_dni_pl_na_skrot.get(dzien, dzien)
+
+                            # ========================================
+                            # NOWE: Sprawdzamy czy zachować salę
+                            # ========================================
+                            sala_do_zapisu = ""
+                            if zachowaj_obecny_plan:
+                                klucz_starej_sali = ('grup', realne_id_grupy, dzien_skrot, godzina)
+                                sala_do_zapisu = stare_sale.get(klucz_starej_sali, "")
+
+                            nowy_plan_obiekty.append(PlanLekcji(
+                                nauczyciel_id=lekcja['nauczyciel'],
+                                klasa_id=None,
+                                przedmiot_id=lekcja['przedmiot'],
+                                grupa_id=realne_id_grupy,
+                                dzien_tygodnia=dzien_skrot,
+                                godzina_lekcyjna=godzina,
+                                sala=sala_do_zapisu  # ← TUTAJ WSTAWIAMY STARĄ SALĘ
+                            ))
+
+        # 3. ZAPIS DO BAZY (Transakcja)
         try:
-            id_wf = next(key for key, value in przedmioty.items() if value.strip().upper() == 'WF')
-        except StopIteration:
-            pass
+            with transaction.atomic():
+                print("Czyszczenie starego planu...")
+                PlanLekcji.objects.all().delete()
 
-        # PRZYKŁAD UŻYCIA Z FLAGĄ:
-        # True = Staraj się zachować stary plan (Stabilizacja)
-        # False = Generuj od zera (Nowy Rozkład)
-        generuj_plan(
-            nauczyciele, przedmioty, klasy, wymagania, grupy,
-            ogr_nauczycieli, ogr_klas, id_wf, db_config,
-            stary_plan_dane=stary_plan,
-            zachowaj_obecny_plan=True  # <--- TU STERUJESZ TRYBEM
-        )
+                print(f"Zapisywanie {len(nowy_plan_obiekty)} nowych lekcji...")
+                PlanLekcji.objects.bulk_create(nowy_plan_obiekty)
+
+            print("Zapisano pomyślnie w bazie.")
+            wynik_dzialania['czy_sukces'] = True
+            wynik_dzialania['wiadomosc'] = f"Plan ułożony i zapisany. Status: {solver.StatusName(status)}"
+
+        except Exception as e:
+            print(f"Błąd podczas zapisu do bazy: {e}")
+            wynik_dzialania['czy_sukces'] = False
+            wynik_dzialania['wiadomosc'] = f"Algorytm znalazł plan, ale wystąpił błąd zapisu: {str(e)}"
+
+    return wynik_dzialania
